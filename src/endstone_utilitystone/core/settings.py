@@ -128,6 +128,21 @@ class Settings:
 
         self.kits = sectionOf(data, "kits")
 
+        menuItem = sectionOf(data, "menuItem")
+        self.menuItemEnabled = readBool(menuItem, "enabled", False)
+        self.menuItemType = readText(menuItem, "itemType", "minecraft:written_book")
+        self.menuItemName = readText(menuItem, "name", "UtilityStone Menu")
+        self.menuItemLore = readText(menuItem, "lore", "Right-click to open the menu")
+        self.menuItemSlot = readInt(menuItem, "slot", 8, 0, 35)
+
+        safeareas = sectionOf(data, "safeareas")
+        self.safeareasEnabled = readBool(safeareas, "enabled", True)
+        self.safeareasScanIntervalSeconds = readFloat(safeareas, "scanIntervalSeconds", 5.0, 1.0, 60.0)
+        self.safeareasMinRadius = readInt(safeareas, "minRadius", 1, 1, 1000)
+        self.safeareasMaxRadius = readInt(safeareas, "maxRadius", 10000, 10, 100000)
+        self.safeareasBypassPermission = readText(safeareas, "bypassPermission", "utilitystone.safearea.bypass")
+        self.safeareasBypassTag = readText(safeareas, "bypassTag", "utilitystone.admin")
+
     def kitDefinition(self, name: str) -> dict | None:
         definition = self.kits.get(name.lower())
         return definition if isinstance(definition, dict) else None

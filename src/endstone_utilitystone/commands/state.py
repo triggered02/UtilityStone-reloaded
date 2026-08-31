@@ -21,60 +21,35 @@ class StateCommands(CommandGroup):
         }
 
     def healPlayer(self, sender, args: list) -> bool:
+        from endstone_utilitystone.util.player_actions import healPlayer
         target = self.resolveSubject(sender, args, OTHERS_HEAL)
         if target is None:
             return True
-
-        target.health = target.max_health
-        self.messages.success(target, "You have been healed.")
-        if not self.isSameSubject(sender, target):
-            self.messages.success(sender, f"Healed {target.name}.")
+        healPlayer(self.plugin, target, sender if self.asPlayer(sender) else None)
         return True
 
     def feedPlayer(self, sender, args: list) -> bool:
+        from endstone_utilitystone.util.player_actions import feedPlayer
         target = self.resolveSubject(sender, args, OTHERS_FEED)
         if target is None:
             return True
-
-        console = self.server.command_sender
-        self.server.dispatch_command(console, f'effect "{target.name}" saturation 1 255 true')
-        self.messages.success(target, "Your hunger has been topped up.")
-        if not self.isSameSubject(sender, target):
-            self.messages.success(sender, f"Fed {target.name}.")
+        feedPlayer(self.plugin, target, sender if self.asPlayer(sender) else None)
         return True
 
     def toggleFlight(self, sender, args: list) -> bool:
+        from endstone_utilitystone.util.player_actions import toggleFlight
         target = self.resolveSubject(sender, args, OTHERS_FLY)
         if target is None:
             return True
-
-        enabled = not target.allow_flight
-        target.allow_flight = enabled
-        if not enabled:
-            target.is_flying = False
-
-        state = "enabled" if enabled else "disabled"
-        self.messages.success(target, f"Flight {state}.")
-        if not self.isSameSubject(sender, target):
-            self.messages.success(sender, f"Flight {state} for {target.name}.")
+        toggleFlight(self.plugin, target, sender if self.asPlayer(sender) else None)
         return True
 
     def toggleGod(self, sender, args: list) -> bool:
+        from endstone_utilitystone.util.player_actions import toggleGod
         target = self.resolveSubject(sender, args, OTHERS_GOD)
         if target is None:
             return True
-
-        protected = self.plugin.godPlayers
-        if target.unique_id in protected:
-            protected.discard(target.unique_id)
-            state = "disabled"
-        else:
-            protected.add(target.unique_id)
-            state = "enabled"
-
-        self.messages.success(target, f"God mode {state}.")
-        if not self.isSameSubject(sender, target):
-            self.messages.success(sender, f"God mode {state} for {target.name}.")
+        toggleGod(self.plugin, target, sender if self.asPlayer(sender) else None)
         return True
 
     def setSpeed(self, sender, args: list) -> bool:

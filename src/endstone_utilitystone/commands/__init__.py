@@ -2,8 +2,10 @@ from endstone_utilitystone.commands.base import CommandGroup
 from endstone_utilitystone.commands.homes import HomeCommands
 from endstone_utilitystone.commands.info import InfoCommands
 from endstone_utilitystone.commands.kits import KitCommands
+from endstone_utilitystone.commands.menu import MenuCommands
 from endstone_utilitystone.commands.messaging import MessagingCommands
 from endstone_utilitystone.commands.moderation import ModerationCommands
+from endstone_utilitystone.commands.safeareas import SafeAreaCommands
 from endstone_utilitystone.commands.spawn import SpawnCommands
 from endstone_utilitystone.commands.state import StateCommands
 from endstone_utilitystone.commands.teleports import TeleportCommands
@@ -19,6 +21,8 @@ COMMAND_GROUPS = (
     ModerationCommands,
     KitCommands,
     InfoCommands,
+    MenuCommands,
+    SafeAreaCommands,
 )
 
 __all__ = [
@@ -27,8 +31,10 @@ __all__ = [
     "HomeCommands",
     "InfoCommands",
     "KitCommands",
+    "MenuCommands",
     "MessagingCommands",
     "ModerationCommands",
+    "SafeAreaCommands",
     "SpawnCommands",
     "StateCommands",
     "TeleportCommands",

@@ -58,6 +58,21 @@ joinMessage = ""
 quitMessage = ""
 welcomeMessage = ""
 
+[menuItem]
+enabled = false
+itemType = "minecraft:written_book"
+name = "UtilityStone Menu"
+lore = "Right-click to open the menu"
+slot = 8
+
+[safeareas]
+enabled = true
+scanIntervalSeconds = 5
+minRadius = 1
+maxRadius = 10000
+bypassPermission = "utilitystone.safearea.bypass"
+bypassTag = "utilitystone.admin"
+
 [kits.starter]
 cooldown = "24h"
 items = [

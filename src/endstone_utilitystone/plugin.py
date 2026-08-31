@@ -17,9 +17,12 @@ from endstone_utilitystone.services.homes import HomeService
 from endstone_utilitystone.services.kits import KitService
 from endstone_utilitystone.services.profiles import ProfileService
 from endstone_utilitystone.services.punishments import PunishmentService
+from endstone_utilitystone.services.safeareas import SafeAreaService
 from endstone_utilitystone.services.spawns import SpawnService
 from endstone_utilitystone.services.teleports import TeleportService
 from endstone_utilitystone.services.warps import WarpService
+from endstone_utilitystone.ui.manager import FormManager
+from endstone_utilitystone.ui.navigation import Navigator
 
 
 class UtilityStone(Plugin):
@@ -235,6 +238,12 @@ class UtilityStone(Plugin):
             "aliases": ["ustone"],
             "permissions": ["utilitystone.command.utilitystone"],
         },
+        "menu": {
+            "description": "Open the UtilityStone player menu.",
+            "usages": ["/menu"],
+            "aliases": [],
+            "permissions": ["utilitystone.command.menu"],
+        },
     }
 
     permissions = {
@@ -290,6 +299,14 @@ class UtilityStone(Plugin):
         "utilitystone.teleport.nocooldown": {"description": "Skip the teleport cooldown.", "default": "op"},
         "utilitystone.chat.color": {"description": "Use colour codes in chat.", "default": "op"},
         "utilitystone.kit.tools": {"description": "Claim the tools kit.", "default": "op"},
+        "utilitystone.command.menu": {"description": "Open the player menu.", "default": True},
+        "utilitystone.admin.gui": {"description": "Access the admin panel.", "default": "op"},
+        "utilitystone.safearea.bypass": {"description": "Bypass safe area gamemode enforcement.", "default": "op"},
+        "utilitystone.command.safearea": {"description": "Use safe area commands.", "default": True},
+        "utilitystone.command.safearea.set": {"description": "Create or modify safe areas.", "default": "op"},
+        "utilitystone.command.safearea.remove": {"description": "Delete safe areas.", "default": "op"},
+        "utilitystone.command.safearea.list": {"description": "List safe areas.", "default": True},
+        "utilitystone.command.safearea.info": {"description": "View safe area details.", "default": True},
     }
 
     def __init__(self):
@@ -308,6 +325,8 @@ class UtilityStone(Plugin):
         self.kits: KitService | None = None
         self.afk: AfkService | None = None
         self.discord: DiscordBridge | None = None
+        self.gui: FormManager | None = None
+        self.safeareas: SafeAreaService | None = None
         self.godPlayers: set = set()
         self._taskIds: list = []
 
@@ -342,6 +361,10 @@ class UtilityStone(Plugin):
         self.afk = AfkService(self)
         self.discord = DiscordBridge(self)
         self.announceDiscord()
+        self.safeareas = SafeAreaService(self)
+
+        self.gui = FormManager(self)
+        self.gui.navigator = Navigator(self.gui)
 
         self.router = CommandRouter(self.logger)
         for group in COMMAND_GROUPS:
@@ -372,6 +395,12 @@ class UtilityStone(Plugin):
 
         if self.storage is not None:
             self.storage.stop()
+
+        if self.gui is not None:
+            self.gui.cleanupExpired()
+
+        if self.safeareas is not None:
+            self.safeareas.clearAll()
 
         self.sessions.clear()
         self.godPlayers.clear()
@@ -422,6 +451,13 @@ class UtilityStone(Plugin):
                 self, self.discord.drainInbound, delay=discordTicks, period=discordTicks
             )
             self._taskIds.append(discordTask.task_id)
+
+        if self.safeareas is not None and self.settings.safeareasEnabled:
+            scanTicks = max(100, int(self.settings.safeareasScanIntervalSeconds * 20))
+            scanTask = scheduler.run_task(
+                self, self.safeareas.scanDangerousActors, delay=scanTicks, period=scanTicks
+            )
+            self._taskIds.append(scanTask.task_id)
 
     def cancelTasks(self) -> None:
         scheduler = self.server.scheduler
