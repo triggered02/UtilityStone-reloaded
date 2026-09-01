@@ -5,6 +5,7 @@ from endstone_utilitystone.commands.kits import KitCommands
 from endstone_utilitystone.commands.menu import MenuCommands
 from endstone_utilitystone.commands.messaging import MessagingCommands
 from endstone_utilitystone.commands.moderation import ModerationCommands
+from endstone_utilitystone.commands.ranks import RankCommands
 from endstone_utilitystone.commands.safeareas import SafeAreaCommands
 from endstone_utilitystone.commands.spawn import SpawnCommands
 from endstone_utilitystone.commands.state import StateCommands
@@ -23,6 +24,7 @@ COMMAND_GROUPS = (
     InfoCommands,
     MenuCommands,
     SafeAreaCommands,
+    RankCommands,
 )
 
 __all__ = [
@@ -34,6 +36,7 @@ __all__ = [
     "MenuCommands",
     "MessagingCommands",
     "ModerationCommands",
+    "RankCommands",
     "SafeAreaCommands",
     "SpawnCommands",
     "StateCommands",

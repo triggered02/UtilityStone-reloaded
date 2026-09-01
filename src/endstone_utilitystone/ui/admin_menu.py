@@ -31,6 +31,7 @@ def openAdminPanel(plugin: UtilityStone, player) -> bool:
     addButton(form, "Spawn", on_click=fm.wrapClick(player, lambda: _openAdminSpawn(plugin, player), "admin_spawn"))
     addButton(form, "Kits", on_click=fm.wrapClick(player, lambda: _openAdminKits(plugin, player), "admin_kits"))
     addButton(form, "Safe Areas", on_click=fm.wrapClick(player, lambda: _openSafeAreas(plugin, player), "admin_safeareas"))
+    addButton(form, "Ranks", on_click=fm.wrapClick(player, lambda: _openRanks(plugin, player), "admin_ranks"))
 
     addDivider(form)
     addHeader(form, "Server Tools")
@@ -46,31 +47,8 @@ def openAdminPanel(plugin: UtilityStone, player) -> bool:
 
 
 def _openPlayerManagement(plugin: UtilityStone, player) -> None:
-    fm = plugin.gui
-
-    form = buildActionMenu("Player Management")
-
-    online = list(plugin.server.online_players)
-    if not online:
-        addLabel(form, "No players online.")
-    else:
-        addLabel(form, f"{len(online)} players online")
-        for target in online:
-            targetName = target.name
-            targetKey = str(target.unique_id)
-            session = plugin.sessions.of(target)
-            afkTag = " [AFK]" if session and session.isAfk else ""
-            mute = plugin.punishments.muteFor(targetKey)
-            muteTag = " [MUTED]" if mute else ""
-
-            addButton(
-                form,
-                f"{targetName}{afkTag}{muteTag}",
-                on_click=fm.wrapClick(player, lambda p=player, t=target: _openPlayerDetail(plugin, p, t), f"player_detail:{targetName}"),
-            )
-
-    addButton(form, "Back", on_click=fm.wrapClick(player, lambda: openAdminPanel(plugin, player), "back"))
-    fm.sendForm(player, form, label="admin_players")
+    from endstone_utilitystone.ui.admin_player_tools import openPlayerList
+    openPlayerList(plugin, player)
 
 
 def _openPlayerDetail(plugin: UtilityStone, player, target) -> None:
@@ -341,6 +319,11 @@ def _openSafeAreas(plugin: UtilityStone, player) -> None:
     addButton(form, "Create Here", on_click=fm.wrapClick(player, lambda: _createSafeArea(plugin, player), "safearea_create"))
     addButton(form, "Back", on_click=fm.wrapClick(player, lambda: openAdminPanel(plugin, player), "back"))
     fm.sendForm(player, form, label="admin_safeareas")
+
+
+def _openRanks(plugin: UtilityStone, player) -> None:
+    from endstone_utilitystone.ui.rank_menu import openRankList
+    openRankList(plugin, player)
 
 
 def _openSafeAreaDetail(plugin: UtilityStone, player, name: str) -> None:

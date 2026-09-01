@@ -167,7 +167,8 @@ def _parseTomlValue(value: str) -> Any:
         return value[1:-1]
 
     if value.startswith("'") and value.endswith("'"):
-        return value[1:-1]
+        inner = value[1:-1]
+        return inner.replace("\\'", "'").replace('\\"', '"')
 
     try:
         if "." in value:

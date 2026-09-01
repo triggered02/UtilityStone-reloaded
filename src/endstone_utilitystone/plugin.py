@@ -21,6 +21,7 @@ from endstone_utilitystone.services.safeareas import SafeAreaService
 from endstone_utilitystone.services.spawns import SpawnService
 from endstone_utilitystone.services.teleports import TeleportService
 from endstone_utilitystone.services.warps import WarpService
+from endstone_utilitystone.services.ranks import RankService
 from endstone_utilitystone.ui.manager import FormManager
 from endstone_utilitystone.ui.navigation import Navigator
 
@@ -257,6 +258,20 @@ class UtilityStone(Plugin):
             "aliases": ["sa"],
             "permissions": ["utilitystone.command.safearea"],
         },
+        "rank": {
+            "description": "Manage server ranks.",
+            "usages": [
+                "/rank list",
+                "/rank info <rank: str>",
+                "/rank create <rank: str>",
+                "/rank delete <rank: str>",
+                "/rank set <player: target> <rank: str>",
+                "/rank remove <player: target>",
+                "/rank player <player: target>",
+            ],
+            "aliases": [],
+            "permissions": ["utilitystone.admin.ranks.view"],
+        },
     }
 
 
@@ -322,6 +337,17 @@ class UtilityStone(Plugin):
         "utilitystone.command.safearea.remove": {"description": "Delete safe areas.", "default": "op"},
         "utilitystone.command.safearea.list": {"description": "List safe areas.", "default": True},
         "utilitystone.command.safearea.info": {"description": "View safe area details.", "default": True},
+        "utilitystone.admin.players.inspect": {"description": "Inspect online players via the admin panel.", "default": "op"},
+        "utilitystone.admin.homes.view": {"description": "View other players' homes.", "default": "op"},
+        "utilitystone.admin.homes.teleport": {"description": "Teleport to other players' homes.", "default": "op"},
+        "utilitystone.admin.homes.delete": {"description": "Delete other players' homes.", "default": "op"},
+        "utilitystone.admin.inventory.view": {"description": "View player inventories.", "default": "op"},
+        "utilitystone.admin.enderchest.view": {"description": "View player ender chests.", "default": "op"},
+        "utilitystone.admin.ranks.view": {"description": "View ranks and rank info.", "default": "op"},
+        "utilitystone.admin.ranks.create": {"description": "Create new ranks.", "default": "op"},
+        "utilitystone.admin.ranks.edit": {"description": "Edit rank properties.", "default": "op"},
+        "utilitystone.admin.ranks.delete": {"description": "Delete ranks.", "default": "op"},
+        "utilitystone.admin.ranks.assign": {"description": "Assign ranks to players.", "default": "op"},
     }
 
     def __init__(self):
@@ -342,6 +368,7 @@ class UtilityStone(Plugin):
         self.discord: DiscordBridge | None = None
         self.gui: FormManager | None = None
         self.safeareas: SafeAreaService | None = None
+        self.ranks: RankService | None = None
         self.godPlayers: set = set()
         self._taskIds: list = []
 
@@ -377,6 +404,7 @@ class UtilityStone(Plugin):
         self.discord = DiscordBridge(self)
         self.announceDiscord()
         self.safeareas = SafeAreaService(self)
+        self.ranks = RankService(self)
 
         self.gui = FormManager(self)
         self.gui.navigator = Navigator(self.gui)
@@ -416,6 +444,9 @@ class UtilityStone(Plugin):
 
         if self.safeareas is not None:
             self.safeareas.clearAll()
+
+        if self.ranks is not None:
+            self.ranks.clearAttachments()
 
         self.sessions.clear()
         self.godPlayers.clear()

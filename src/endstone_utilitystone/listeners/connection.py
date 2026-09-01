@@ -17,6 +17,10 @@ class ConnectionListener:
         session = plugin.sessions.open(player)
         plugin.profiles.recordJoin(player)
 
+        # Apply rank permissions
+        if plugin.ranks is not None:
+            plugin.ranks.applyRank(player)
+
         template = plugin.settings.joinMessage
         if template:
             event.join_message = None if template.lower() in SUPPRESS_TOKENS else self.render(template, player)

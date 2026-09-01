@@ -48,8 +48,29 @@ class ChatListener:
         sessions = plugin.sessions
 
         body = colorize(message) if player.has_permission(COLOR_PERMISSION) else message
+
+        # Build chat format with rank prefix/suffix
         template = colorize(plugin.afk.tag(session) + settings.chatFormat)
-        line = template.replace("{name}", player.name).replace("{message}", body)
+
+        # Get rank prefix/suffix
+        rank_prefix = ""
+        rank_suffix = ""
+        if plugin.ranks is not None:
+            rank_name = plugin.ranks.getEffectiveRankName(player)
+            rank_prefix = plugin.ranks.getPrefix(rank_name)
+            rank_suffix = plugin.ranks.getSuffix(rank_name)
+            if rank_prefix:
+                rank_prefix = colorize(rank_prefix)
+            if rank_suffix:
+                rank_suffix = colorize(rank_suffix)
+
+        line = (
+            template
+            .replace("{prefix}", rank_prefix)
+            .replace("{suffix}", rank_suffix)
+            .replace("{name}", player.name)
+            .replace("{message}", body)
+        )
 
         senderKey = session.key if session is not None else str(player.unique_id)
 
