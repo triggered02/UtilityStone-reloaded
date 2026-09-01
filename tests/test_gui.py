@@ -307,3 +307,172 @@ class TestComponentsAPI:
         sig = inspect.signature(buildActionMenu)
         params = list(sig.parameters.keys())
         assert "title" in params
+
+
+class TestWrapSubmitSignature:
+    """Regression test: wrapSubmit must pass (player, data) to callback, not just (data)."""
+
+    def test_wrap_submit_passes_player_and_data(self):
+        """wrapSubmit callback receives (player, data), not just (data)."""
+        from endstone_utilitystone.ui.manager import FormManager
+        import inspect
+
+        fm = FormManager.__new__(FormManager)
+        fm.plugin = None
+        fm._sessions = {}
+        fm._lock = __import__("threading").Lock()
+        fm._sessionTtl = 300.0
+
+        received = []
+
+        def my_callback(player, data):
+            received.append((player, data))
+
+        mock_player = type("MockPlayer", (), {"unique_id": 42, "is_valid": True})()
+        wrapped = fm.wrapSubmit(mock_player, my_callback, "test")
+
+        sig = inspect.signature(wrapped)
+        params = list(sig.parameters.keys())
+        assert len(params) == 2, f"onSubmit must accept 2 params (p, data), got {params}"
+
+        wrapped(mock_player, "[1, 2, 3]")
+        assert len(received) == 1
+        assert received[0] == (mock_player, "[1, 2, 3]")
+
+    def test_wrap_submit_callback_type_hint(self):
+        """wrapSubmit type hint must indicate callback takes 2 args."""
+        from endstone_utilitystone.ui.manager import FormManager
+        import inspect
+
+        sig = inspect.signature(FormManager.wrapSubmit)
+        cb_param = sig.parameters.get("callback")
+        assert cb_param is not None
+        hint = cb_param.annotation
+        assert hint != inspect.Parameter.empty
+        hint_str = str(hint)
+        assert "Any" in hint_str or "Callable" in hint_str
+
+
+class TestConfigStringSaveRoundTrip:
+    """Regression test: string config values must survive write + read round trip."""
+
+    STRING_TOML = """\
+[chat]
+format = "<{name}> {message}"
+afkTag = "&7[AFK] &r"
+
+[connection]
+joinMessage = ""
+quitMessage = ""
+welcomeMessage = "Welcome {name}!"
+"""
+
+    def test_write_string_simple(self):
+        new_toml = _writeTomlValue(self.STRING_TOML, "chat.format", "[$name] $msg")
+        result = _readTomlValue(new_toml, "chat.format")
+        assert result == "[$name] $msg"
+
+    def test_write_string_empty(self):
+        new_toml = _writeTomlValue(self.STRING_TOML, "connection.joinMessage", "")
+        result = _readTomlValue(new_toml, "connection.joinMessage")
+        assert result == ""
+
+    def test_write_string_with_special_chars(self):
+        new_toml = _writeTomlValue(self.STRING_TOML, "chat.format", "{name}: {message}")
+        result = _readTomlValue(new_toml, "chat.format")
+        assert result == "{name}: {message}"
+
+    def test_write_string_with_color_codes(self):
+        new_toml = _writeTomlValue(self.STRING_TOML, "chat.afkTag", "&7[AFK] &r")
+        result = _readTomlValue(new_toml, "chat.afkTag")
+        assert result == "&7[AFK] &r"
+
+    def test_write_string_preserves_other_values(self):
+        new_toml = _writeTomlValue(self.STRING_TOML, "chat.format", "NEW FORMAT")
+        assert _readTomlValue(new_toml, "chat.afkTag") == "&7[AFK] &r"
+        assert _readTomlValue(new_toml, "connection.welcomeMessage") == "Welcome {name}!"
+
+    def test_format_string_produces_valid_toml(self):
+        formatted = _formatTomlValue("hello world")
+        assert formatted == '"hello world"'
+        parsed = _parseTomlValue(formatted)
+        assert parsed == "hello world"
+
+    def test_format_string_with_quotes(self):
+        formatted = _formatTomlValue("it's a test")
+        parsed = _parseTomlValue(formatted)
+        assert parsed == "it's a test"
+
+    def test_format_string_with_curly_braces(self):
+        formatted = _formatTomlValue("{name} {message}")
+        assert formatted.startswith("'")
+        assert formatted.endswith("'")
+        parsed = _parseTomlValue(formatted)
+        assert parsed == "{name} {message}"
+
+
+class TestPlayerMenuGrouping:
+    """Regression test: player menu must have grouped sections."""
+
+    def test_player_menu_has_travel_header(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert 'addHeader(form, "Travel")' in source
+
+    def test_player_menu_has_teleport_header(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert 'addHeader(form, "Teleport")' in source
+
+    def test_player_menu_has_utilities_header(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert 'addHeader(form, "Utilities")' in source
+
+    def test_player_menu_groups_travel_together(self):
+        """Homes, Warps, Spawn should appear under Travel header."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        travel_idx = source.index('addHeader(form, "Travel")')
+        homes_idx = source.index('"Homes"', travel_idx)
+        warps_idx = source.index('"Warps"', travel_idx)
+        spawn_idx = source.index('"Spawn"', travel_idx)
+        assert homes_idx < warps_idx < spawn_idx
+
+    def test_player_menu_empty_state(self):
+        """When no permissions, shows empty state message."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert 'No features available.' in source
+
+
+class TestTracebackLogging:
+    """Regression test: GUI callbacks must log tracebacks (exc_info=True)."""
+
+    def test_wrap_submit_logs_traceback(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "manager.py"
+        source = path.read_text()
+        assert "exc_info=True" in source
+
+    def test_wrap_click_logs_traceback(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "manager.py"
+        source = path.read_text()
+        lines = source.split("\n")
+        click_section = False
+        found_exc_info_in_click = False
+        for line in lines:
+            if "def wrapClick" in line:
+                click_section = True
+            elif click_section and "def wrap" in line:
+                click_section = False
+            if click_section and "exc_info=True" in line:
+                found_exc_info_in_click = True
+                break
+        assert found_exc_info_in_click, "wrapClick must use exc_info=True for traceback logging"

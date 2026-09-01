@@ -30,22 +30,36 @@ def openPlayerMenu(plugin: UtilityStone, player) -> bool:
         hasKitAccess = hasPermission(player, "utilitystone.command.kit")
         hasAfkAccess = hasPermission(player, "utilitystone.command.afk")
 
-        if hasHomesAccess:
-            addButton(form, "Homes", on_click=fm.wrapClick(player, lambda: _openHomes(plugin, player), "homes"))
-        if hasWarpsAccess:
-            addButton(form, "Warps", on_click=fm.wrapClick(player, lambda: _openWarps(plugin, player), "warps"))
-        if hasSpawnAccess:
-            addButton(form, "Spawn", on_click=fm.wrapClick(player, lambda: player.perform_command("spawn"), "spawn"))
-        if hasTpaAccess:
-            addButton(form, "Teleport", on_click=fm.wrapClick(player, lambda: _openTeleport(plugin, player), "teleport"))
-        if hasKitAccess:
-            addButton(form, "Kits", on_click=fm.wrapClick(player, lambda: _openKits(plugin, player), "kits"))
+        hasAnyTravel = hasHomesAccess or hasWarpsAccess or hasSpawnAccess
 
-        addDivider(form)
-        addHeader(form, "Info & Tools")
-        addButton(form, "Player Info", on_click=fm.wrapClick(player, lambda: _openPlayerInfo(plugin, player), "playerinfo"))
-        if hasAfkAccess:
-            addButton(form, "AFK", on_click=fm.wrapClick(player, lambda: player.perform_command("afk"), "afk"))
+        if hasAnyTravel:
+            addHeader(form, "Travel")
+            if hasHomesAccess:
+                addButton(form, "Homes", on_click=fm.wrapClick(player, lambda: _openHomes(plugin, player), "homes"))
+            if hasWarpsAccess:
+                addButton(form, "Warps", on_click=fm.wrapClick(player, lambda: _openWarps(plugin, player), "warps"))
+            if hasSpawnAccess:
+                addButton(form, "Spawn", on_click=fm.wrapClick(player, lambda: player.perform_command("spawn"), "spawn"))
+
+        if hasTpaAccess:
+            if hasAnyTravel:
+                addDivider(form)
+            addHeader(form, "Teleport")
+            addButton(form, "TPA", on_click=fm.wrapClick(player, lambda: _openTeleport(plugin, player), "teleport"))
+
+        hasAnyUtility = hasKitAccess or hasAfkAccess
+        if hasAnyUtility:
+            if hasAnyTravel or hasTpaAccess:
+                addDivider(form)
+            addHeader(form, "Utilities")
+            if hasKitAccess:
+                addButton(form, "Kits", on_click=fm.wrapClick(player, lambda: _openKits(plugin, player), "kits"))
+            addButton(form, "Player Info", on_click=fm.wrapClick(player, lambda: _openPlayerInfo(plugin, player), "playerinfo"))
+            if hasAfkAccess:
+                addButton(form, "AFK", on_click=fm.wrapClick(player, lambda: player.perform_command("afk"), "afk"))
+
+        if not hasAnyTravel and not hasTpaAccess and not hasAnyUtility:
+            addLabel(form, "No features available.")
 
         if hasAdminGui(player):
             addDivider(form)

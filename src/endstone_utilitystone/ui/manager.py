@@ -59,7 +59,7 @@ class FormManager:
             pass
         return None
 
-    def wrapSubmit(self, player, callback: Callable[[Any], None], actionLabel: str = "") -> Callable[[Any, Any], None]:
+    def wrapSubmit(self, player, callback: Callable[[Any, Any], None], actionLabel: str = "") -> Callable[[Any, Any], None]:
         def onSubmit(p, data):
             try:
                 current = self.safePlayer(p)
@@ -67,9 +67,9 @@ class FormManager:
                     return
                 if current.unique_id != player.unique_id:
                     return
-                callback(data)
+                callback(current, data)
             except Exception as exc:
-                self.plugin.logger.error(f"Form callback error ({actionLabel}): {exc}")
+                self.plugin.logger.error(f"Form callback error ({actionLabel}): {exc}", exc_info=True)
                 try:
                     current = self.safePlayer(p)
                     if current is not None:
@@ -89,7 +89,7 @@ class FormManager:
                     return
                 callback()
             except Exception as exc:
-                self.plugin.logger.error(f"Form click callback error ({actionLabel}): {exc}")
+                self.plugin.logger.error(f"Form click callback error ({actionLabel}): {exc}", exc_info=True)
                 try:
                     current = self.safePlayer(p)
                     if current is not None:
