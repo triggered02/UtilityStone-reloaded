@@ -9,8 +9,6 @@ Handles:
 - Gamemode change prevention
 """
 
-from __future__ import annotations
-
 from endstone.actor import Actor
 from endstone import GameMode, Player
 from endstone.event import (

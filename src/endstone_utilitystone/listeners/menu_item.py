@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from endstone.event import EventPriority, PlayerInteractEvent, event_handler
 
 
