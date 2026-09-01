@@ -86,11 +86,17 @@ class SafeAreaListener:
 
     @event_handler(priority=EventPriority.NORMAL)
     def onPlayerQuit(self, event: PlayerQuitEvent) -> None:
-        """Handle player quitting to clean up state."""
+        """Handle player quitting to restore gamemode and clean up state.
+
+        Must restore gamemode BEFORE clearing state. PlayerQuitEvent fires
+        while the player is still connected, so we can set their gamemode.
+        This ensures on rejoin the system won't save ADVENTURE as the
+        player's original gamemode.
+        """
         if not self.plugin.settings.safeareasEnabled:
             return
 
-        self.safeareas.clearPlayerState(event.player)
+        self.safeareas.restoreAndClearPlayerState(event.player)
 
     # ──────────────────────────────────────────────────────────────────
     # Actor Spawn Prevention

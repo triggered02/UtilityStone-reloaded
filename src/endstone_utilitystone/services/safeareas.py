@@ -461,8 +461,36 @@ class SafeAreaService:
     # Cleanup
     # ──────────────────────────────────────────────────────────────────
 
+    def restoreAndClearPlayerState(self, player: Player) -> None:
+        """Restore gamemode and clear state on disconnect.
+
+        When a player disconnects inside a safe area, we must restore their
+        original gamemode before clearing state. Otherwise, on rejoin the
+        system would save ADVENTURE as their "original" gamemode.
+
+        Args:
+            player: The player (still connected at this point)
+        """
+        playerKey = str(player.unique_id)
+        state = self._playerStates.get(playerKey)
+
+        if state is not None:
+            # Restore gamemode while player is still connected
+            self._enforcing.add(playerKey)
+            try:
+                player.game_mode = state.previousGamemode
+            finally:
+                self._enforcing.discard(playerKey)
+                self._playerStates.pop(playerKey, None)
+        else:
+            # No state to restore, just clean up
+            self._enforcing.discard(playerKey)
+
     def clearPlayerState(self, player: Player) -> None:
-        """Clear a player's state (called on disconnect).
+        """Clear a player's state without restoring gamemode.
+
+        Used for cleanup when state is no longer needed (e.g., plugin disable).
+        For disconnect handling, use restoreAndClearPlayerState() instead.
 
         Args:
             player: The player

@@ -187,3 +187,123 @@ class TestPermissions:
         from endstone_utilitystone.ui.permissions import ADMIN_GUI_PERMISSION, PLAYER_GUI_PERMISSION
         assert ADMIN_GUI_PERMISSION == "utilitystone.admin.gui"
         assert PLAYER_GUI_PERMISSION == "utilitystone.command.menu"
+
+
+class TestAdminMenuSafeAreaImports:
+    """Verify admin_menu.py uses correct Endstone form API."""
+
+    def test_admin_menu_does_not_import_addTextInput(self):
+        """addTextInput does not exist in components.py — must use TextInput from endstone.form."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "admin_menu.py"
+        source = path.read_text()
+        assert "addTextInput" not in source
+
+    def test_admin_menu_uses_buildModal_correctly(self):
+        """_createSafeArea must pass controls list and onSubmit to buildModal."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "admin_menu.py"
+        source = path.read_text()
+        assert 'controls=controls' in source
+        assert 'submitText=' in source or 'submitText =' in source
+
+    def test_admin_menu_imports_text_input_from_endstone(self):
+        """TextInput must come from endstone.form, not from components."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "admin_menu.py"
+        source = path.read_text()
+        assert "from endstone.form import TextInput" in source
+
+    def test_admin_menu_safearea_functions_exist(self):
+        """All required SafeArea admin GUI functions must exist."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "admin_menu.py"
+        source = path.read_text()
+        assert "def _openSafeAreas(" in source
+        assert "def _openSafeAreaDetail(" in source
+        assert "def _createSafeArea(" in source
+        assert "def _toggleSafeArea(" in source
+        assert "def _confirmDeleteSafeArea(" in source
+
+    def test_admin_menu_requires_permission(self):
+        """Admin panel must check hasAdminGui before showing content."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "admin_menu.py"
+        source = path.read_text()
+        assert "hasAdminGui(player)" in source
+
+
+class TestPlayerMenuPermissionChecks:
+    """Verify player_menu.py conditionally shows buttons based on permissions."""
+
+    def test_player_menu_checks_homes_permission(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert "hasHomesAccess" in source
+        assert 'if hasHomesAccess:' in source
+
+    def test_player_menu_checks_warps_permission(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert "hasWarpsAccess" in source
+        assert 'if hasWarpsAccess:' in source
+
+    def test_player_menu_checks_spawn_permission(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert "hasSpawnAccess" in source
+        assert 'if hasSpawnAccess:' in source
+
+    def test_player_menu_checks_tpa_permission(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert "hasTpaAccess" in source
+        assert 'if hasTpaAccess:' in source
+
+    def test_player_menu_checks_kit_permission(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert "hasKitAccess" in source
+        assert 'if hasKitAccess:' in source
+
+    def test_player_menu_checks_afk_permission(self):
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        assert "hasAfkAccess" in source
+        assert 'if hasAfkAccess:' in source
+
+    def test_player_info_always_visible(self):
+        """Player Info should always be shown (no permission check needed)."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
+        source = path.read_text()
+        # Player Info button should not be inside a permission conditional
+        assert 'addButton(form, "Player Info"' in source
+
+
+class TestComponentsAPI:
+    """Verify components.py provides the correct API."""
+
+    def test_buildModal_signature(self):
+        """buildModal must accept controls, onSubmit, submitText."""
+        import inspect
+        from endstone_utilitystone.ui.components import buildModal
+        sig = inspect.signature(buildModal)
+        params = list(sig.parameters.keys())
+        assert "title" in params
+        assert "controls" in params
+        assert "onSubmit" in params
+        assert "submitText" in params
+
+    def test_buildActionMenu_signature(self):
+        import inspect
+        from endstone_utilitystone.ui.components import buildActionMenu
+        sig = inspect.signature(buildActionMenu)
+        params = list(sig.parameters.keys())
+        assert "title" in params

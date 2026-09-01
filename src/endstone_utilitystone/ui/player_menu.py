@@ -28,19 +28,24 @@ def openPlayerMenu(plugin: UtilityStone, player) -> bool:
         hasSpawnAccess = hasPermission(player, "utilitystone.command.spawn")
         hasTpaAccess = hasPermission(player, "utilitystone.command.tpa")
         hasKitAccess = hasPermission(player, "utilitystone.command.kit")
-        hasWhoAccess = hasPermission(player, "utilitystone.command.who")
         hasAfkAccess = hasPermission(player, "utilitystone.command.afk")
 
-        addButton(form, "Homes", on_click=fm.wrapClick(player, lambda: _openHomes(plugin, player), "homes"))
-        addButton(form, "Warps", on_click=fm.wrapClick(player, lambda: _openWarps(plugin, player), "warps"))
-        addButton(form, "Spawn", on_click=fm.wrapClick(player, lambda: player.perform_command("spawn"), "spawn"))
-        addButton(form, "Teleport", on_click=fm.wrapClick(player, lambda: _openTeleport(plugin, player), "teleport"))
-        addButton(form, "Kits", on_click=fm.wrapClick(player, lambda: _openKits(plugin, player), "kits"))
+        if hasHomesAccess:
+            addButton(form, "Homes", on_click=fm.wrapClick(player, lambda: _openHomes(plugin, player), "homes"))
+        if hasWarpsAccess:
+            addButton(form, "Warps", on_click=fm.wrapClick(player, lambda: _openWarps(plugin, player), "warps"))
+        if hasSpawnAccess:
+            addButton(form, "Spawn", on_click=fm.wrapClick(player, lambda: player.perform_command("spawn"), "spawn"))
+        if hasTpaAccess:
+            addButton(form, "Teleport", on_click=fm.wrapClick(player, lambda: _openTeleport(plugin, player), "teleport"))
+        if hasKitAccess:
+            addButton(form, "Kits", on_click=fm.wrapClick(player, lambda: _openKits(plugin, player), "kits"))
 
         addDivider(form)
         addHeader(form, "Info & Tools")
         addButton(form, "Player Info", on_click=fm.wrapClick(player, lambda: _openPlayerInfo(plugin, player), "playerinfo"))
-        addButton(form, "AFK", on_click=fm.wrapClick(player, lambda: player.perform_command("afk"), "afk"))
+        if hasAfkAccess:
+            addButton(form, "AFK", on_click=fm.wrapClick(player, lambda: player.perform_command("afk"), "afk"))
 
         if hasAdminGui(player):
             addDivider(form)

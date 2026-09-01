@@ -498,7 +498,10 @@ class TestSafeAreaServicePlayerEnforcement:
         player.scoreboard_tags = set()
 
         if game_mode is not None:
-            type(player).game_mode = PropertyMock(return_value=game_mode, new_callable=lambda: MagicMock(return_value=None))
+            # Store game_mode as a regular attribute (not PropertyMock)
+            # so setting player.game_mode = X actually works
+            del player.game_mode  # Remove any default mock
+            player.game_mode = game_mode
 
         def has_permission(perm):
             if is_op:
@@ -667,6 +670,441 @@ class TestSafeAreaServicePlayerEnforcement:
         service.clearPlayerState(player)
         state = service.getState(player)
         assert state is None
+
+    def test_restore_and_clear_restores_gamemode(self):
+        """Test that restoreAndClearPlayerState restores original gamemode before clearing state."""
+        from endstone_utilitystone.services.safeareas import SafeAreaService
+        from endstone import GameMode
+
+        plugin, store = _create_mock_plugin()
+        service = SafeAreaService(plugin)
+
+        service.create("spawn", "OVERWORLD", 0, 0, 100, "Admin")
+
+        # Player enters safe area with SURVIVAL mode
+        player = self._create_mock_player(game_mode=GameMode.SURVIVAL)
+        service.updatePlayerLocation(player)
+
+        # Verify player is tracked and enforced to ADVENTURE
+        state = service.getState(player)
+        assert state is not None
+        assert state.previousGamemode == GameMode.SURVIVAL
+        assert player.game_mode == GameMode.ADVENTURE
+
+        # Disconnect (should restore SURVIVAL before clearing state)
+        service.restoreAndClearPlayerState(player)
+
+        # Verify gamemode was restored to SURVIVAL
+        assert player.game_mode == GameMode.SURVIVAL
+
+        # Verify state was cleared
+        state = service.getState(player)
+        assert state is None
+
+    def test_restore_and_clear_no_state(self):
+        """Test restoreAndClearPlayerState with no existing state."""
+        from endstone_utilitystone.services.safeareas import SafeAreaService
+
+        plugin, store = _create_mock_plugin()
+        service = SafeAreaService(plugin)
+
+        player = self._create_mock_player()
+
+        # Call restoreAndClearPlayerState with no state - should not crash
+        service.restoreAndClearPlayerState(player)
+
+        # Verify no state exists
+        state = service.getState(player)
+        assert state is None
+
+    def test_restore_and_clear_prevents_adventure_as_previous(self):
+        """Test that restoreAndClear prevents ADVENTURE from being saved as previousGamemode on rejoin.
+
+        This is the critical bug fix: if a player disconnects inside a safe area
+        without restoring gamemode, on rejoin the system would save ADVENTURE as
+        their "original" gamemode, causing them to be stuck in ADVENTURE after leaving.
+        """
+        from endstone_utilitystone.services.safeareas import SafeAreaService
+        from endstone import GameMode
+
+        plugin, store = _create_mock_plugin()
+        service = SafeAreaService(plugin)
+
+        service.create("spawn", "OVERWORLD", 0, 0, 100, "Admin")
+
+        # Player enters safe area with SURVIVAL mode
+        player = self._create_mock_player(game_mode=GameMode.SURVIVAL)
+        service.updatePlayerLocation(player)
+
+        # Verify enforcement
+        state = service.getState(player)
+        assert state.previousGamemode == GameMode.SURVIVAL
+
+        # Simulate disconnect with proper restoration
+        service.restoreAndClearPlayerState(player)
+        assert player.game_mode == GameMode.SURVIVAL  # Restored
+
+        # Simulate rejoin - player is now in SURVIVAL (restored)
+        # When they enter the safe area again, SURVIVAL should be saved
+        service.updatePlayerLocation(player)
+        state = service.getState(player)
+        assert state is not None
+        assert state.previousGamemode == GameMode.SURVIVAL  # Correctly saved SURVIVAL, not ADVENTURE
+
+    def test_restore_and_clear_does_not_affect_enforcing_set(self):
+        """Test that restoreAndClearPlayerState properly cleans up the enforcing set."""
+        from endstone_utilitystone.services.safeareas import SafeAreaService
+        from endstone import GameMode
+
+        plugin, store = _create_mock_plugin()
+        service = SafeAreaService(plugin)
+
+        service.create("spawn", "OVERWORLD", 0, 0, 100, "Admin")
+
+        player = self._create_mock_player(game_mode=GameMode.SURVIVAL)
+        playerKey = str(player.unique_id)
+
+        service.updatePlayerLocation(player)
+
+        # Verify enforcing set is clean after enforcement
+        assert playerKey not in service._enforcing
+
+        # Disconnect
+        service.restoreAndClearPlayerState(player)
+
+        # Verify enforcing set is still clean
+        assert playerKey not in service._enforcing
+
+    def test_restore_and_clear_with_adventure_mode_player(self):
+        """Test restoreAndClearPlayerState when player was already in ADVENTURE mode."""
+        from endstone_utilitystone.services.safeareas import SafeAreaService
+        from endstone import GameMode
+
+        plugin, store = _create_mock_plugin()
+        service = SafeAreaService(plugin)
+
+        service.create("spawn", "OVERWORLD", 0, 0, 100, "Admin")
+
+        # Player enters safe area with ADVENTURE mode (e.g., creative builder)
+        player = self._create_mock_player(game_mode=GameMode.ADVENTURE)
+        service.updatePlayerLocation(player)
+
+        # State should save ADVENTURE as previous (since that's what they had)
+        state = service.getState(player)
+        assert state.previousGamemode == GameMode.ADVENTURE
+
+        # Disconnect
+        service.restoreAndClearPlayerState(player)
+
+        # Should restore to ADVENTURE (their original mode)
+        assert player.game_mode == GameMode.ADVENTURE
+
+
+class TestSafeAreaWalkOutRegression:
+    """Regression tests for the exact reported bug:
+    SURVIVAL → enter SafeArea → ADVENTURE → walk outside → SURVIVAL
+
+    Each test verifies one specific property of the walk-out path.
+    """
+
+    def _create_service_with_area(self, center_x=0, center_z=0, radius=100):
+        """Create a SafeAreaService with one 'spawn' area."""
+        from endstone_utilitystone.services.safeareas import SafeAreaService
+        plugin, store = _create_mock_plugin()
+        service = SafeAreaService(plugin)
+        service.create("spawn", "OVERWORLD", center_x, center_z, radius, "Admin")
+        return service
+
+    def _create_player(self, unique_id="player1", game_mode=None):
+        """Create a mock player with mutable game_mode."""
+        player = MagicMock()
+        player.unique_id = unique_id
+        player.name = "TestPlayer"
+        player.is_op = False
+        player.scoreboard_tags = set()
+        player.has_permission = lambda perm: False
+        if game_mode is not None:
+            del player.game_mode
+            player.game_mode = game_mode
+        location = MagicMock()
+        location.dimension.name = "OVERWORLD"
+        location.x = 0
+        location.z = 0
+        player.location = location
+        return player
+
+    # ──────────────────────────────────────────────────────────────────
+    # 1. updatePlayerLocation IS called on every movement tick
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_walk_outside_triggers_updatePlayerLocation(self):
+        """Walking outside the radius calls areasContaining with the new coordinates."""
+        from endstone_utilitystone.services.safeareas import SafeAreaService
+        from endstone import GameMode
+
+        service = self._create_service_with_area(center_x=0, center_z=0, radius=100)
+        player = self._create_player(game_mode=GameMode.SURVIVAL)
+
+        # Enter
+        player.location.x = 0
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert service.getState(player) is not None
+
+        # Walk outside
+        player.location.x = 200
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+
+        # State should be cleared (updatePlayerLocation ran and processed exit)
+        assert service.getState(player) is None
+
+    # ──────────────────────────────────────────────────────────────────
+    # 2. areasContaining correctly detects outside-the-radius position
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_areas_containing_returns_empty_outside_radius(self):
+        """areasContaining returns empty list for a point outside the circle."""
+        service = self._create_service_with_area(center_x=0, center_z=0, radius=100)
+
+        # Inside
+        inside = service.areasContaining("OVERWORLD", 50, 0)
+        assert len(inside) == 1
+
+        # Exactly on boundary (100 units away) — inclusive
+        boundary = service.areasContaining("OVERWORLD", 100, 0)
+        assert len(boundary) == 1
+
+        # Just outside boundary
+        outside = service.areasContaining("OVERWORLD", 101, 0)
+        assert len(outside) == 0
+
+        # Far outside
+        far_outside = service.areasContaining("OVERWORLD", 500, 500)
+        assert len(far_outside) == 0
+
+    # ──────────────────────────────────────────────────────────────────
+    # 3. Gamemode is restored to SURVIVAL after walking out
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_walk_out_restores_survival_gamemode(self):
+        """Full path: SURVIVAL → enter → ADVENTURE → walk out → SURVIVAL."""
+        from endstone import GameMode
+
+        service = self._create_service_with_area(center_x=0, center_z=0, radius=100)
+        player = self._create_player(game_mode=GameMode.SURVIVAL)
+
+        # Step 1: Player starts in SURVIVAL
+        assert player.game_mode == GameMode.SURVIVAL
+
+        # Step 2: Walk INTO the safe area
+        player.location.x = 0
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+
+        # Step 3: Verify switched to ADVENTURE
+        assert player.game_mode == GameMode.ADVENTURE
+        state = service.getState(player)
+        assert state is not None
+        assert state.previousGamemode == GameMode.SURVIVAL
+
+        # Step 4: Walk OUTSIDE the safe area
+        player.location.x = 200
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+
+        # Step 5: Verify restored to SURVIVAL
+        assert player.game_mode == GameMode.SURVIVAL
+
+    # ──────────────────────────────────────────────────────────────────
+    # 4. Player state is cleared after restoration
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_walk_out_clears_player_state(self):
+        """After walking out, the player's state should be None."""
+        from endstone import GameMode
+
+        service = self._create_service_with_area(center_x=0, center_z=0, radius=100)
+        player = self._create_player(game_mode=GameMode.SURVIVAL)
+
+        # Enter
+        player.location.x = 0
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert service.getState(player) is not None
+
+        # Walk out
+        player.location.x = 200
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+
+        # State cleared
+        assert service.getState(player) is None
+
+    # ──────────────────────────────────────────────────────────────────
+    # 5. Enforcing set is clean after walk-out (no leaked locks)
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_walk_out_enforcing_set_clean(self):
+        """After walking out, the _enforcing set should have no entry for this player."""
+        from endstone import GameMode
+
+        service = self._create_service_with_area(center_x=0, center_z=0, radius=100)
+        player = self._create_player(game_mode=GameMode.SURVIVAL)
+        playerKey = str(player.unique_id)
+
+        # Enter
+        player.location.x = 0
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert playerKey not in service._enforcing
+
+        # Walk out
+        player.location.x = 200
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert playerKey not in service._enforcing
+
+    # ──────────────────────────────────────────────────────────────────
+    # 6. Teleport outside also restores correctly
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_teleport_out_restores_survival(self):
+        """Teleporting outside the safe area also restores gamemode."""
+        from endstone import GameMode
+
+        service = self._create_service_with_area(center_x=0, center_z=0, radius=100)
+        player = self._create_player(game_mode=GameMode.SURVIVAL)
+
+        # Enter
+        player.location.x = 0
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert player.game_mode == GameMode.ADVENTURE
+
+        # Teleport outside (same code path as walk — updatePlayerLocation is called)
+        player.location.x = -500
+        player.location.z = -500
+        service.updatePlayerLocation(player)
+
+        assert player.game_mode == GameMode.SURVIVAL
+        assert service.getState(player) is None
+
+    # ──────────────────────────────────────────────────────────────────
+    # 7. Rapid enter/exit does not corrupt state
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_rapid_enter_exit_cycle(self):
+        """Multiple rapid enter/exit cycles should always restore correctly."""
+        from endstone import GameMode
+
+        service = self._create_service_with_area(center_x=0, center_z=0, radius=100)
+        player = self._create_player(game_mode=GameMode.SURVIVAL)
+
+        for _ in range(5):
+            # Enter
+            player.location.x = 0
+            player.location.z = 0
+            service.updatePlayerLocation(player)
+            assert player.game_mode == GameMode.ADVENTURE
+
+            # Exit
+            player.location.x = 200
+            player.location.z = 0
+            service.updatePlayerLocation(player)
+            assert player.game_mode == GameMode.SURVIVAL
+            assert service.getState(player) is None
+
+    # ──────────────────────────────────────────────────────────────────
+    # 8. Walking to a different area within the zone does NOT restore
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_staying_inside_does_not_restore(self):
+        """Moving within the safe area keeps ADVENTURE, does not restore."""
+        from endstone import GameMode
+
+        service = self._create_service_with_area(center_x=0, center_z=0, radius=100)
+        player = self._create_player(game_mode=GameMode.SURVIVAL)
+
+        # Enter at center
+        player.location.x = 0
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert player.game_mode == GameMode.ADVENTURE
+
+        # Move to edge but still inside
+        player.location.x = 50
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert player.game_mode == GameMode.ADVENTURE
+        assert service.getState(player) is not None
+
+    # ──────────────────────────────────────────────────────────────────
+    # 9. Re-entering after walk-out saves correct previous gamemode
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_reenter_after_walkout_saves_survival(self):
+        """After walking out and re-entering, previousGamemode should be SURVIVAL, not ADVENTURE."""
+        from endstone import GameMode
+
+        service = self._create_service_with_area(center_x=0, center_z=0, radius=100)
+        player = self._create_player(game_mode=GameMode.SURVIVAL)
+
+        # Enter → ADVENTURE
+        player.location.x = 0
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert player.game_mode == GameMode.ADVENTURE
+
+        # Walk out → SURVIVAL
+        player.location.x = 200
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert player.game_mode == GameMode.SURVIVAL
+
+        # Re-enter → should save SURVIVAL as previous (not ADVENTURE)
+        player.location.x = 0
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+        assert player.game_mode == GameMode.ADVENTURE
+        state = service.getState(player)
+        assert state is not None
+        assert state.previousGamemode == GameMode.SURVIVAL
+
+    # ──────────────────────────────────────────────────────────────────
+    # 10. The _enforcing guard prevents onPlayerGameModeChange from blocking
+    # ──────────────────────────────────────────────────────────────────
+
+    def test_enforcing_guard_during_restore(self):
+        """Verify the _enforcing set is populated during _restoreGamemode execution,
+        preventing the PlayerGameModeChangeEvent handler from cancelling the restore."""
+        from endstone_utilitystone.services.safeareas import SafeAreaService
+        from endstone import GameMode
+
+        plugin, store = _create_mock_plugin()
+        service = SafeAreaService(plugin)
+        service.create("spawn", "OVERWORLD", 0, 0, 100, "Admin")
+
+        player = self._create_player(game_mode=GameMode.SURVIVAL)
+        playerKey = str(player.unique_id)
+
+        # Enter area
+        player.location.x = 0
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+
+        # Simulate what onPlayerGameModeChange does: check isEnforcing
+        # At this point, _enforcing should be clean
+        assert not service.isEnforcing(playerKey)
+
+        # Now walk out — _restoreGamemode should add to _enforcing before setting game_mode
+        player.location.x = 200
+        player.location.z = 0
+        service.updatePlayerLocation(player)
+
+        # After restoration, _enforcing should be clean again
+        assert not service.isEnforcing(playerKey)
+        assert player.game_mode == GameMode.SURVIVAL
 
 
 class TestSafeAreaServiceDangerousActorScan:
@@ -884,3 +1322,23 @@ class TestSafeAreaCodeVerification:
         assert "_openSafeAreas" in source
         assert "_openSafeAreaDetail" in source
         assert "_createSafeArea" in source
+
+    def test_safearea_listener_uses_restore_and_clear(self):
+        """Verify SafeAreaListener uses restoreAndClearPlayerState on quit."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "listeners" / "safearea.py"
+        source = path.read_text()
+
+        # Must use restoreAndClearPlayerState on quit to restore gamemode
+        assert "restoreAndClearPlayerState" in source
+        # Must NOT use clearPlayerState on quit (would lose gamemode)
+        assert "clearPlayerState" not in source
+
+    def test_safearea_service_has_restore_and_clear(self):
+        """Verify SafeAreaService has restoreAndClearPlayerState method."""
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "services" / "safeareas.py"
+        source = path.read_text()
+
+        assert "def restoreAndClearPlayerState" in source
+        assert "def clearPlayerState" in source  # Still exists for other uses

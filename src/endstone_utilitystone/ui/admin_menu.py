@@ -387,26 +387,35 @@ def _openSafeAreaDetail(plugin: UtilityStone, player, name: str) -> None:
 
 
 def _createSafeArea(plugin: UtilityStone, player) -> None:
-    from endstone_utilitystone.ui.components import buildModal, addTextInput
+    from endstone.form import TextInput
+    from endstone_utilitystone.ui.components import buildModal
 
-    form = buildModal("Create Safe Area", submit_label="Create")
-    addTextInput(form, "name", label="Area Name", placeholder="e.g., spawn")
-    addTextInput(form, "radius", label="Radius (blocks)", placeholder="e.g., 100")
+    fm = plugin.gui
+    controls = [
+        TextInput(label="Area Name", placeholder="e.g., spawn"),
+        TextInput(label="Radius (blocks)", placeholder="e.g., 100"),
+    ]
 
-    def _onSubmit(formData):
-        name = formData.get("name", "").strip()
-        radiusStr = formData.get("radius", "").strip()
+    def _onSubmit(p, data):
+        parsed = fm.parseModalData(data)
+        if not parsed or len(parsed) < 2:
+            plugin.messages.failure(player, "Please fill in both fields.")
+            fm.untrack(player)
+            return
+
+        name = str(parsed[0]).strip()
+        radiusStr = str(parsed[1]).strip()
 
         if not name:
             plugin.messages.failure(player, "Please enter an area name.")
-            plugin.gui.untrack(player)
+            fm.untrack(player)
             return
 
         try:
             radius = float(radiusStr)
         except (ValueError, TypeError):
             plugin.messages.failure(player, "Radius must be a number.")
-            plugin.gui.untrack(player)
+            fm.untrack(player)
             return
 
         location = player.location
@@ -428,10 +437,14 @@ def _createSafeArea(plugin: UtilityStone, player) -> None:
         else:
             plugin.messages.failure(player, message)
 
-        plugin.gui.untrack(player)
+        fm.untrack(player)
 
-    form.on_submit = lambda p, data: _onSubmit(data)
-    fm = plugin.gui
+    form = buildModal(
+        "Create Safe Area",
+        controls=controls,
+        onSubmit=fm.wrapSubmit(player, _onSubmit, "safearea_create"),
+        submitText="Create",
+    )
     fm.sendForm(player, form, label="safearea_create_modal")
 
 
