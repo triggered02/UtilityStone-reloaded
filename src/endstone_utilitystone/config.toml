@@ -31,7 +31,7 @@ historySize = 5
 
 [chat]
 manageFormat = true
-format = "<{name}> {message}"
+format = "{prefix}{name}{suffix}: {message}"
 afkTag = "&7[AFK] &r"
 
 [afk]

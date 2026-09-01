@@ -386,6 +386,7 @@ class UtilityStone(Plugin):
         try:
             self.save_default_config()
             self.settings.applyFrom(self.config)
+            self._migrateChatFormat()
         except Exception as error:
             self.logger.error(f"Could not read config.toml, falling back to defaults: {error}")
             self.settings.applyFrom({})
@@ -474,6 +475,31 @@ class UtilityStone(Plugin):
         self.cancelTasks()
         self.scheduleTasks()
         return True
+
+    def _migrateChatFormat(self) -> None:
+        """Auto-upgrade old default chat format to include {prefix}/{suffix}."""
+        config_path = Path(self.data_folder) / "config.toml"
+        if not config_path.exists():
+            return
+
+        try:
+            raw = config_path.read_text(encoding="utf-8")
+        except Exception:
+            return
+
+        old_default = '<{name}> {message}'
+        new_default = '{prefix}{name}{suffix}: {message}'
+
+        # Only migrate if the format is exactly the old default (not user-customized)
+        if f'format = "{old_default}"' not in raw:
+            return
+
+        updated = raw.replace(f'format = "{old_default}"', f'format = "{new_default}"')
+        try:
+            config_path.write_text(updated, encoding="utf-8")
+            self.logger.info("Migrated chat format to include rank prefix/suffix placeholders.")
+        except Exception as exc:
+            self.logger.warning(f"Could not migrate chat format: {exc}")
 
     def scheduleTasks(self) -> None:
         scheduler = self.server.scheduler

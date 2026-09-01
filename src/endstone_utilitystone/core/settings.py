@@ -97,7 +97,7 @@ class Settings:
 
         chat = sectionOf(data, "chat")
         self.chatManaged = readBool(chat, "manageFormat", True)
-        self.chatFormat = readText(chat, "format", "<{name}> {message}")
+        self.chatFormat = readText(chat, "format", "{prefix}{name}{suffix}: {message}")
         self.chatAfkTag = readText(chat, "afkTag", "&7[AFK] &r")
 
         afk = sectionOf(data, "afk")
