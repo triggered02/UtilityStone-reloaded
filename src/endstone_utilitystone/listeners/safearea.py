@@ -76,10 +76,13 @@ class SafeAreaListener:
         if not self.plugin.settings.safeareasEnabled:
             return
 
-        # Small delay to ensure player location is set
+        # Capture the player NOW. Do not access event.player later
+        # inside the delayed callback because the event may be invalid.
+        player = event.player
+
         self.plugin.server.scheduler.run_task(
             self.plugin,
-            lambda: self.safeareas.updatePlayerLocation(event.player),
+            lambda: self.safeareas.updatePlayerLocation(player),
             delay=5,
         )
 

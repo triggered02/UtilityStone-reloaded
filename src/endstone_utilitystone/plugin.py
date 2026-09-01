@@ -244,7 +244,22 @@ class UtilityStone(Plugin):
             "aliases": [],
             "permissions": ["utilitystone.command.menu"],
         },
+        "safearea": {
+            "description": "Manage protected safe areas.",
+            "usages": [
+                "/safearea set <name: str> <radius: float>",
+                "/safearea remove <name: str>",
+                "/safearea list",
+                "/safearea info <name: str>",
+                "/safearea enable <name: str>",
+                "/safearea disable <name: str>",
+            ],
+            "aliases": ["sa"],
+            "permissions": ["utilitystone.command.safearea"],
+        },
     }
+
+
 
     permissions = {
         "utilitystone.command.sethome": {"description": "Save a home.", "default": True},
