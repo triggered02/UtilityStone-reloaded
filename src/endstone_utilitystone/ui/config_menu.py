@@ -71,6 +71,9 @@ CONFIG_CATEGORIES = {
         ConfigField("afk.sampleSeconds", "Sample Interval", "How often positions are sampled", "float", 5.0, 1.0, 60.0, 1.0),
         ConfigField("afk.announce", "Announce AFK", "Announce AFK changes in chat", "bool", True),
     ],
+    "Daily Rewards": [
+        ConfigField("dailyRewards.enabled", "Enabled", "Enable or disable the daily rewards system", "bool", True),
+    ],
     "Connection Messages": [
         ConfigField("connection.joinMessage", "Join Message", "Custom join message ({name} replaced, empty = default, 'none' = hidden)", "string", ""),
         ConfigField("connection.quitMessage", "Quit Message", "Custom quit message ({name} replaced, empty = default, 'none' = hidden)", "string", ""),
@@ -317,6 +320,7 @@ def _getCurrentValue(plugin: UtilityStone, dottedKey: str) -> Any:
         ("discord", "chatFormat"): lambda: settings.discordChatFormat,
         ("discord", "eventFormat"): lambda: settings.discordEventFormat,
         ("discord", "inboundFormat"): lambda: settings.discordInboundFormat,
+        ("dailyRewards", "enabled"): lambda: settings.dailyRewardsEnabled,
     }
 
     getter = attrMap.get((sectionName, keyName))

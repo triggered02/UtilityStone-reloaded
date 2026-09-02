@@ -73,6 +73,23 @@ maxRadius = 10000
 bypassPermission = "utilitystone.safearea.bypass"
 bypassTag = "utilitystone.admin"
 
+[dailyRewards]
+enabled = true
+
+[dailyRewards.rewards]
+"1" = [
+    "give {player} iron_ingot 5",
+]
+"3" = [
+    "give {player} diamond 1",
+]
+"7" = [
+    "give {player} emerald 5",
+]
+"30" = [
+    "give {player} diamond_block 1",
+]
+
 [kits.starter]
 cooldown = "24h"
 items = [

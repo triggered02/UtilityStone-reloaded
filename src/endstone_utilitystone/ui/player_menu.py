@@ -29,6 +29,7 @@ def openPlayerMenu(plugin: UtilityStone, player) -> bool:
         hasTpaAccess = hasPermission(player, "utilitystone.command.tpa")
         hasKitAccess = hasPermission(player, "utilitystone.command.kit")
         hasAfkAccess = hasPermission(player, "utilitystone.command.afk")
+        hasDailyRewardAccess = hasPermission(player, "utilitystone.command.dailyreward")
 
         hasAnyTravel = hasHomesAccess or hasWarpsAccess or hasSpawnAccess
 
@@ -47,7 +48,7 @@ def openPlayerMenu(plugin: UtilityStone, player) -> bool:
             addHeader(form, "Teleport")
             addButton(form, "TPA", on_click=fm.wrapClick(player, lambda: _openTeleport(plugin, player), "teleport"))
 
-        hasAnyUtility = hasKitAccess or hasAfkAccess
+        hasAnyUtility = hasKitAccess or hasAfkAccess or hasDailyRewardAccess
         if hasAnyUtility:
             if hasAnyTravel or hasTpaAccess:
                 addDivider(form)
@@ -57,6 +58,8 @@ def openPlayerMenu(plugin: UtilityStone, player) -> bool:
             addButton(form, "Player Info", on_click=fm.wrapClick(player, lambda: _openPlayerInfo(plugin, player), "playerinfo"))
             if hasAfkAccess:
                 addButton(form, "AFK", on_click=fm.wrapClick(player, lambda: player.perform_command("afk"), "afk"))
+            if hasDailyRewardAccess:
+                addButton(form, "Daily Reward", on_click=fm.wrapClick(player, lambda: _openDailyReward(plugin, player), "dailyreward"))
 
         if not hasAnyTravel and not hasTpaAccess and not hasAnyUtility:
             addLabel(form, "No features available.")
@@ -370,3 +373,8 @@ def _openPlayerInfo(plugin: UtilityStone, player) -> None:
 
     addButton(form, "Back", on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "back"))
     fm.sendForm(player, form, label="player_info")
+
+
+def _openDailyReward(plugin: UtilityStone, player) -> None:
+    from endstone_utilitystone.ui.daily_rewards import openDailyReward
+    openDailyReward(plugin, player)

@@ -143,6 +143,10 @@ class Settings:
         self.safeareasBypassPermission = readText(safeareas, "bypassPermission", "utilitystone.safearea.bypass")
         self.safeareasBypassTag = readText(safeareas, "bypassTag", "utilitystone.admin")
 
+        dailyRewards = sectionOf(data, "dailyRewards")
+        self.dailyRewardsEnabled = readBool(dailyRewards, "enabled", True)
+        self.dailyRewardsRewards = self._parseMilestones(dailyRewards.get("rewards"))
+
     def kitDefinition(self, name: str) -> dict | None:
         definition = self.kits.get(name.lower())
         return definition if isinstance(definition, dict) else None
@@ -163,3 +167,28 @@ class Settings:
             if value > limit and player.has_permission(node):
                 limit = value
         return limit
+
+    @staticmethod
+    def _parseMilestones(rawRewards) -> dict:
+        """Parse daily reward milestones from config into {int_day: [str_commands]}."""
+        rewards: dict = {}
+        if not isinstance(rawRewards, dict):
+            return rewards
+
+        for dayKey, cmds in rawRewards.items():
+            try:
+                dayNum = int(dayKey)
+            except (ValueError, TypeError):
+                continue
+
+            if isinstance(cmds, (list, tuple)):
+                cleaned = [str(c) for c in cmds if isinstance(c, str) and str(c).strip()]
+            elif isinstance(cmds, str) and cmds.strip():
+                cleaned = [cmds]
+            else:
+                cleaned = []
+
+            if cleaned:
+                rewards[dayNum] = cleaned
+
+        return rewards

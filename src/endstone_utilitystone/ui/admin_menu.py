@@ -32,6 +32,7 @@ def openAdminPanel(plugin: UtilityStone, player) -> bool:
     addButton(form, "Kits", on_click=fm.wrapClick(player, lambda: _openAdminKits(plugin, player), "admin_kits"))
     addButton(form, "Safe Areas", on_click=fm.wrapClick(player, lambda: _openSafeAreas(plugin, player), "admin_safeareas"))
     addButton(form, "Ranks", on_click=fm.wrapClick(player, lambda: _openRanks(plugin, player), "admin_ranks"))
+    addButton(form, "Daily Rewards", on_click=fm.wrapClick(player, lambda: _openDailyRewards(plugin, player), "admin_daily_rewards"))
 
     addDivider(form)
     addHeader(form, "Server Tools")
@@ -324,6 +325,11 @@ def _openSafeAreas(plugin: UtilityStone, player) -> None:
 def _openRanks(plugin: UtilityStone, player) -> None:
     from endstone_utilitystone.ui.rank_menu import openRankList
     openRankList(plugin, player)
+
+
+def _openDailyRewards(plugin: UtilityStone, player) -> None:
+    from endstone_utilitystone.ui.daily_rewards import openDailyRewardsAdmin
+    openDailyRewardsAdmin(plugin, player)
 
 
 def _openSafeAreaDetail(plugin: UtilityStone, player, name: str) -> None:

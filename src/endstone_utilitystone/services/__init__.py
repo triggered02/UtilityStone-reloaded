@@ -1,4 +1,5 @@
 from endstone_utilitystone.services.afk import AfkService
+from endstone_utilitystone.services.daily_rewards import DailyRewardsService
 from endstone_utilitystone.services.homes import HomeService
 from endstone_utilitystone.services.kits import KitService
 from endstone_utilitystone.services.profiles import ProfileService
@@ -10,6 +11,7 @@ from endstone_utilitystone.services.warps import WarpService
 
 __all__ = [
     "AfkService",
+    "DailyRewardsService",
     "HomeService",
     "KitService",
     "ProfileService",

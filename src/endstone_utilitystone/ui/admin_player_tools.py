@@ -145,6 +145,14 @@ def _openPlayerInspector(plugin: UtilityStone, player, target) -> None:
             on_click=fm.wrapClick(player, lambda: _openChangeRank(plugin, player, target), f"change_rank:{target.name}"),
         )
 
+    # Daily Rewards button
+    if hasPermission(player, "utilitystone.admin.dailyrewards.view"):
+        addButton(
+            form,
+            "Daily Rewards",
+            on_click=fm.wrapClick(player, lambda: _openDailyRewards(plugin, player, target), f"daily_rewards:{target.name}"),
+        )
+
     if hasPermission(player, PERM_HOMES_TELEPORT):
         addButton(
             form,
@@ -611,3 +619,8 @@ def _removePlayerRank(plugin: UtilityStone, player, target) -> None:
     else:
         plugin.messages.failure(player, msg)
     plugin.gui.untrack(player)
+
+
+def _openDailyRewards(plugin: UtilityStone, player, target) -> None:
+    from endstone_utilitystone.ui.daily_rewards import openPlayerDailyRewardDetail
+    openPlayerDailyRewardDetail(plugin, player, target)

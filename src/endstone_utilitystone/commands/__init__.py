@@ -1,4 +1,5 @@
 from endstone_utilitystone.commands.base import CommandGroup
+from endstone_utilitystone.commands.daily_rewards import DailyRewardsCommands
 from endstone_utilitystone.commands.homes import HomeCommands
 from endstone_utilitystone.commands.info import InfoCommands
 from endstone_utilitystone.commands.kits import KitCommands
@@ -25,11 +26,13 @@ COMMAND_GROUPS = (
     MenuCommands,
     SafeAreaCommands,
     RankCommands,
+    DailyRewardsCommands,
 )
 
 __all__ = [
     "COMMAND_GROUPS",
     "CommandGroup",
+    "DailyRewardsCommands",
     "HomeCommands",
     "InfoCommands",
     "KitCommands",

@@ -13,6 +13,7 @@ from endstone_utilitystone.core.storage import StorageManager
 from endstone_utilitystone.integrations.discord import DiscordBridge
 from endstone_utilitystone.listeners import LISTENERS
 from endstone_utilitystone.services.afk import AfkService
+from endstone_utilitystone.services.daily_rewards import DailyRewardsService
 from endstone_utilitystone.services.homes import HomeService
 from endstone_utilitystone.services.kits import KitService
 from endstone_utilitystone.services.profiles import ProfileService
@@ -272,6 +273,16 @@ class UtilityStone(Plugin):
             "aliases": [],
             "permissions": ["utilitystone.admin.ranks.view"],
         },
+        "dailyreward": {
+            "description": "Claim your daily reward or check your status.",
+            "usages": [
+                "/dailyreward",
+                "/dailyreward claim",
+                "/dailyreward status",
+            ],
+            "aliases": [],
+            "permissions": ["utilitystone.command.dailyreward"],
+        },
     }
 
 
@@ -348,6 +359,9 @@ class UtilityStone(Plugin):
         "utilitystone.admin.ranks.edit": {"description": "Edit rank properties.", "default": "op"},
         "utilitystone.admin.ranks.delete": {"description": "Delete ranks.", "default": "op"},
         "utilitystone.admin.ranks.assign": {"description": "Assign ranks to players.", "default": "op"},
+        "utilitystone.command.dailyreward": {"description": "Claim daily rewards.", "default": True},
+        "utilitystone.admin.dailyrewards.view": {"description": "View daily reward info for players.", "default": "op"},
+        "utilitystone.admin.dailyrewards.reset": {"description": "Reset daily reward streaks and history.", "default": "op"},
     }
 
     def __init__(self):
@@ -369,6 +383,7 @@ class UtilityStone(Plugin):
         self.gui: FormManager | None = None
         self.safeareas: SafeAreaService | None = None
         self.ranks: RankService | None = None
+        self.dailyRewards: DailyRewardsService | None = None
         self.godPlayers: set = set()
         self._taskIds: list = []
 
@@ -406,6 +421,7 @@ class UtilityStone(Plugin):
         self.announceDiscord()
         self.safeareas = SafeAreaService(self)
         self.ranks = RankService(self)
+        self.dailyRewards = DailyRewardsService(self)
 
         self.gui = FormManager(self)
         self.gui.navigator = Navigator(self.gui)
