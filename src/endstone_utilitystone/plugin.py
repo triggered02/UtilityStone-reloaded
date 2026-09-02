@@ -362,6 +362,7 @@ class UtilityStone(Plugin):
         "utilitystone.command.dailyreward": {"description": "Claim daily rewards.", "default": True},
         "utilitystone.admin.dailyrewards.view": {"description": "View daily reward info for players.", "default": "op"},
         "utilitystone.admin.dailyrewards.reset": {"description": "Reset daily reward streaks and history.", "default": "op"},
+        "utilitystone.admin.dailyrewards.manage": {"description": "Create, edit, and delete daily reward milestones.", "default": "op"},
     }
 
     def __init__(self):

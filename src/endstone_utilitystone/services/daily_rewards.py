@@ -39,10 +39,61 @@ from the console.
 from __future__ import annotations
 
 import datetime
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from endstone_utilitystone.plugin import UtilityStone
+
+_REWARDS_HEADER = "[dailyRewards.rewards]"
+
+
+def _tomlString(text) -> str:
+    """Escape a string for use in a TOML double-quoted literal."""
+    return '"' + str(text).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _rewriteRewardsSection(tomlText: str, milestones: dict) -> str:
+    """Replace the [dailyRewards.rewards] block in *tomlText* with *milestones*.
+
+    Everything else in the file is preserved verbatim.  If the section header
+    is missing it is appended at the end of the file.
+    """
+    lines = tomlText.splitlines()
+    headerIdx = None
+    for i, line in enumerate(lines):
+        if line.strip() == _REWARDS_HEADER:
+            headerIdx = i
+            break
+
+    block = [_REWARDS_HEADER]
+    for day in sorted(int(key) for key in milestones.keys()):
+        commands = milestones[day]
+        block.append(f"{day} = [")
+        for command in commands:
+            block.append(f"    {_tomlString(command)},")
+        block.append("]")
+
+    if headerIdx is None:
+        if lines and lines[-1].strip() != "":
+            lines.append("")
+        return "\n".join(lines + block)
+
+    endIdx = len(lines)
+    for j in range(headerIdx + 1, len(lines)):
+        if lines[j].strip().startswith("["):
+            endIdx = j
+            break
+
+    before = lines[:headerIdx]
+    after = lines[endIdx:]
+    while before and before[-1].strip() == "":
+        before.pop()
+    while after and after[0].strip() == "":
+        after.pop(0)
+
+    return "\n".join(before + [""] + block + [""] + after)
 
 
 class DailyRewardsService:
@@ -345,3 +396,195 @@ class DailyRewardsService:
             f"Admin cleared daily reward history for {player_uuid}"
         )
         return True, "Player's daily reward history has been cleared."
+
+    # ------------------------------------------------------------------
+    # Reward milestone management (admin)
+    #
+    # These methods edit the configured reward milestones.  Each write
+    # updates the in-memory settings immediately (so the service sees it
+    # right away) and then persists the [dailyRewards.rewards] section of
+    # config.toml so the change survives a restart.
+    # ------------------------------------------------------------------
+    def getRewards(self) -> dict[int, list[str]]:
+        """Return a copy of all configured reward milestones."""
+        rewards = {}
+        for day, commands in self._milestones().items():
+            try:
+                key = int(day)
+            except (TypeError, ValueError):
+                key = day
+            rewards[key] = list(commands)
+        return rewards
+
+    def getReward(self, milestone) -> list[str] | None:
+        """Return a milestone's commands, or None if it does not exist."""
+        day, err = self._validateMilestone(milestone)
+        if err:
+            return None
+        commands = self._milestones().get(day)
+        return list(commands) if commands is not None else None
+
+    @staticmethod
+    def _validateMilestone(value) -> tuple[int, str]:
+        """Validate a milestone day.  Returns (day, '') or (0, error)."""
+        try:
+            day = int(value)
+        except (TypeError, ValueError):
+            return 0, "Milestone must be a whole number."
+        if day <= 0:
+            return 0, "Milestone must be a positive integer greater than zero."
+        return day, ""
+
+    @staticmethod
+    def _normalizeCommands(commands) -> list[str]:
+        """Coerce and strip a commands input into a clean list of strings."""
+        if isinstance(commands, str):
+            commands = [commands]
+        cleaned = []
+        if isinstance(commands, (list, tuple)):
+            for command in commands:
+                if isinstance(command, str) and command.strip():
+                    cleaned.append(command.strip())
+        return cleaned
+
+    def _commitMilestones(self, milestones: dict, successMessage: str) -> tuple[bool, str]:
+        """Apply milestone changes to settings and persist to config.toml."""
+        self.plugin.settings.dailyRewardsRewards = milestones
+        if not self._persistMilestones(milestones):
+            self.plugin.logger.warning(
+                "Daily reward milestones changed in memory but config.toml could not be saved."
+            )
+        return True, successMessage
+
+    def createReward(self, milestone, commands) -> tuple[bool, str]:
+        """Create a new reward milestone.  Refuses an existing milestone."""
+        day, err = self._validateMilestone(milestone)
+        if err:
+            return False, err
+        if day in self._milestones():
+            return False, f"A Day {day} reward already exists. Edit it instead."
+        cleaned = self._normalizeCommands(commands)
+        new = dict(self._milestones())
+        new[day] = cleaned
+        return self._commitMilestones(new, f"Day {day} reward created.")
+
+    def setReward(self, milestone, commands) -> tuple[bool, str]:
+        """Create or overwrite a milestone's commands."""
+        day, err = self._validateMilestone(milestone)
+        if err:
+            return False, err
+        cleaned = self._normalizeCommands(commands)
+        new = dict(self._milestones())
+        new[day] = cleaned
+        action = "updated" if day in self._milestones() else "created"
+        return self._commitMilestones(new, f"Day {day} reward {action}.")
+
+    def deleteReward(self, milestone) -> tuple[bool, str]:
+        """Remove a milestone entirely."""
+        day, err = self._validateMilestone(milestone)
+        if err:
+            return False, err
+        if day not in self._milestones():
+            return False, f"No Day {day} reward exists."
+        new = dict(self._milestones())
+        del new[day]
+        return self._commitMilestones(new, f"Day {day} reward deleted.")
+
+    def addRewardCommand(self, milestone, command) -> tuple[bool, str]:
+        """Append a single command to an existing milestone."""
+        day, err = self._validateMilestone(milestone)
+        if err:
+            return False, err
+        command = self._normalizeCommands([command])
+        if not command:
+            return False, "Reward command cannot be empty."
+        if day not in self._milestones():
+            return False, f"No Day {day} reward exists. Add the milestone first."
+        updated = list(self._milestones()[day]) + command
+        new = dict(self._milestones())
+        new[day] = updated
+        return self._commitMilestones(new, f"Command added to Day {day} reward.")
+
+    def updateRewardCommand(self, milestone, index, command) -> tuple[bool, str]:
+        """Replace the command at *index* on a milestone."""
+        day, err = self._validateMilestone(milestone)
+        if err:
+            return False, err
+        command = self._normalizeCommands([command])
+        if not command:
+            return False, "Reward command cannot be empty."
+        current = self._milestones().get(day)
+        if current is None:
+            return False, f"No Day {day} reward exists."
+        try:
+            idx = int(index)
+        except (TypeError, ValueError):
+            return False, "Invalid command index."
+        if not 0 <= idx < len(current):
+            return False, f"Command index out of range (0-{len(current) - 1})."
+        updated = list(current)
+        updated[idx] = command[0]
+        new = dict(self._milestones())
+        new[day] = updated
+        return self._commitMilestones(new, f"Command {idx + 1} on Day {day} updated.")
+
+    def removeRewardCommand(self, milestone, index) -> tuple[bool, str]:
+        """Remove the command at *index* from a milestone."""
+        day, err = self._validateMilestone(milestone)
+        if err:
+            return False, err
+        current = self._milestones().get(day)
+        if current is None:
+            return False, f"No Day {day} reward exists."
+        try:
+            idx = int(index)
+        except (TypeError, ValueError):
+            return False, "Invalid command index."
+        if not 0 <= idx < len(current):
+            return False, f"Command index out of range (0-{len(current) - 1})."
+        updated = list(current)
+        removed = updated.pop(idx)
+        new = dict(self._milestones())
+        new[day] = updated
+        return self._commitMilestones(new, f"Removed command {idx + 1} ({removed}) from Day {day}.")
+
+    # ------------------------------------------------------------------
+    # Config persistence
+    # ------------------------------------------------------------------
+    def _configPath(self) -> Path:
+        folder = getattr(self.plugin, "data_folder", None) or ""
+        return Path(folder) / "config.toml"
+
+    def _persistMilestones(self, milestones: dict) -> bool:
+        """Write the rewards section to config.toml.  Returns True on success."""
+        path = self._configPath()
+        if not path.exists():
+            self.plugin.logger.warning(f"config.toml not found at {path} - rewards not saved to disk.")
+            return False
+
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            self.plugin.logger.warning(f"Could not read config.toml: {exc}")
+            return False
+
+        try:
+            updated = _rewriteRewardsSection(raw, milestones)
+        except Exception as exc:
+            self.plugin.logger.error(f"Could not build config.toml update: {exc}")
+            return False
+
+        try:
+            temporary = path.with_name("config.toml.tmp")
+            temporary.write_text(updated, encoding="utf-8")
+            os.replace(temporary, path)
+        except OSError as exc:
+            self.plugin.logger.error(f"Could not write config.toml: {exc}")
+            try:
+                temporary = path.with_name("config.toml.tmp")
+                if temporary.exists():
+                    temporary.unlink()
+            except Exception:
+                pass
+            return False
+        return True
