@@ -142,6 +142,9 @@
         "layer": 1,
         "anchor_from": "top_left",
         "anchor_to": "top_left",
+        "$default_button_texture": "textures/ui/default_c_button",
+        "$hover_button_texture": "textures/ui/hover_c_button",
+        "$pressed_button_texture": "textures/ui/pressed_c_button",
         "controls": [
             {
                 "scrolling_panel@common.scrolling_panel": {

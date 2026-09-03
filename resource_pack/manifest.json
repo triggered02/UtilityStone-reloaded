@@ -7,7 +7,7 @@
 	},
 	"header": {
 		"name": "UtilityStone Reloaded RP",
-		"description": "Visual styling for UtilityStone menus (Phase 1: player /menu)",
+		"description": "Visual styling for UtilityStone menus (Phase 2A: desktop button textures)",
 		"min_engine_version": [
 			1,
 			21,
@@ -17,7 +17,7 @@
 		"version": [
 			1,
 			0,
-			0
+			1
 		]
 	},
 	"modules": [
@@ -27,7 +27,7 @@
 			"version": [
 				1,
 				0,
-				0
+				1
 			]
 		}
 	]
