@@ -3,8 +3,27 @@ from __future__ import annotations
 from endstone.form import ActionForm, Label, Header, Divider, ModalForm, MessageForm
 
 
+# Obsidian-style invisible title signatures. Each char is §-escaped so the whole
+# token renders empty in-game; the §❖ prefix namespaces it so other resource
+# packs cannot collide. The server_form.json factory detects these via
+# bindings (#title_text - $signature).
+SIGNATURE_COMMUNITY = "§❖§C§D"
+SIGNATURE_ADMIN = "§❖§A§D"
+SIGNATURE_COMMUNITY_MODAL = "§❖§C§X"
+SIGNATURE_ADMIN_MODAL = "§❖§A§X"
+
+
 def buildActionMenu(title: str, description: str = "") -> ActionForm:
     return ActionForm(title=title, content=description)
+
+
+def stylePlayerMenu(title: str, description: str = "") -> ActionForm:
+    """Build the /menu player ActionForm with the community styling signature.
+
+    This is the ONLY signature used in PHASE 1. The token is invisible in-game
+    but lets the resource pack select the Obsidian community panel.
+    """
+    return ActionForm(title=SIGNATURE_COMMUNITY + title, content=description)
 
 
 def addButton(form: ActionForm, text: str, on_click=None, icon: str | None = None):

@@ -10,6 +10,7 @@ from endstone_utilitystone.ui.components import (
     addButton,
     buildActionMenu,
     emptyState,
+    stylePlayerMenu,
 )
 from endstone_utilitystone.ui.permissions import hasAdminGui, hasPermission
 
@@ -21,7 +22,7 @@ def openPlayerMenu(plugin: UtilityStone, player) -> bool:
     fm = plugin.gui
 
     def _build():
-        form = buildActionMenu("UtilityStone", "Your server toolkit")
+        form = stylePlayerMenu("UtilityStone", "Your server toolkit")
 
         hasHomesAccess = hasPermission(player, "utilitystone.command.homes")
         hasWarpsAccess = hasPermission(player, "utilitystone.command.warp")
