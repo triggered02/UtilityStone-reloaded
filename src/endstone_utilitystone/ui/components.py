@@ -18,19 +18,36 @@ SIGNATURE_ADMIN = "§❖§A§D"
 SIGNATURE_COMMUNITY_MODAL = "§❖§C§X"
 SIGNATURE_ADMIN_MODAL = "§❖§A§X"
 
+# UtilityStone UI Protocol v1 marker.
+#
+# This is a deterministic, invisible-to-player marker emitted at the start of
+# /menu form titles. The server_form.json factory detects it via
+# `not ((#title_text - $utilitystone) = #title_text)`.
+#
+# Unlike the COMMUNITY marker (which uses the §a§№§r color-token trick that
+# happens to match a property_bag key), this marker does NOT rely on
+# property_bag lookups or UTF-8 byte-counting. It is a stable, namespaced,
+## §-escaped token.
+#
+# All six characters (§ ❖ § U § S § T § D) are Minecraft formatting escapes.
+# §U/§S/§T/§D are not valid color codes, so they render as zero-width. The
+# §❖ prefix namespaces the marker so other resource packs cannot collide.
+UST_MARKER = "§❖§U§S§T§D"
+
 
 def buildActionMenu(title: str, description: str = "") -> ActionForm:
     return ActionForm(title=title, content=description)
 
 
 def stylePlayerMenu(title: str, description: str = "") -> ActionForm:
-    """Build the /menu player ActionForm with the community styling signature.
+    """Build the /menu player ActionForm with the UtilityStone UI marker.
 
-    The signature carries an invisible §a§№§r color-mode prefix so the
-    property_bag in custom_forms.credit_state_* can resolve the green/blue/purple
-    pill texture from the first 8 UTF-8 bytes of the title. See SIGNATURE_COMMUNITY.
+    The marker (UST_MARKER) is prepended to the title. The resource pack's
+    server_form.json detects this marker via
+    `(not ((#title_text - $utilitystone) = #title_text))` and routes the form
+    to UtilityStone's custom renderer instead of vanilla / Obsidian fallback.
     """
-    return ActionForm(title=SIGNATURE_COMMUNITY + title, content=description)
+    return ActionForm(title=UST_MARKER + title, content=description)
 
 
 def addButton(form: ActionForm, text: str, on_click=None, icon: str | None = None):

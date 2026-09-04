@@ -42,6 +42,17 @@
         "operation": "insert_back",
         "value": [
           {
+            "utilitystone": {
+              "type": "panel",
+              "factory": {
+                "name": "server_form_factory",
+                "control_ids": {
+                  "long_form": "@utilitystone.player_menu_form"
+                }
+              }
+            }
+          },
+          {
             "obsidian": {
               "type": "panel",
               "factory": {

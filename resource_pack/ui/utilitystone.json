@@ -1,0 +1,193 @@
+{
+    "namespace": "utilitystone",
+
+    "player_menu_form": {
+        "type": "panel",
+        "size": [ "100%", "100%" ],
+        "controls": [
+            {
+                "main_panel": {
+                    "type": "panel",
+                    "size": [ 430, 200 ],
+                    "anchor_from": "center",
+                    "anchor_to": "center",
+                    "controls": [
+                        {
+                            "screen_dim": {
+                                "type": "image",
+                                "texture": "textures/ui/Black",
+                                "color": [ 0, 0, 0 ],
+                                "alpha": 0.5,
+                                "anchor_from": "center",
+                                "anchor_to": "center",
+                                "size": [ 10000, 10000 ],
+                                "layer": 0
+                            }
+                        },
+                        {
+                            "background": {
+                                "type": "image",
+                                "texture": "textures/ui/community_bg",
+                                "size": [ "100%", "100%" ],
+                                "alpha": 0.96,
+                                "layer": 1
+                            }
+                        },
+                        {
+                            "title": {
+                                "type": "label",
+                                "text": "#title_text",
+                                "color": [ 1, 1, 1 ],
+                                "font_scale_factor": 1.3,
+                                "shadow": true,
+                                "text_alignment": "center",
+                                "anchor_from": "top_middle",
+                                "anchor_to": "top_middle",
+                                "offset": [ 0, -20 ],
+                                "size": [ "100% - 32px", 24 ],
+                                "layer": 10
+                            }
+                        },
+                        {
+                            "body": {
+                                "type": "label",
+                                "text": "#form_text",
+                                "color": [ 1, 1, 1 ],
+                                "font_type": "smooth",
+                                "text_alignment": "right",
+                                "anchor_from": "right_middle",
+                                "anchor_to": "right_middle",
+                                "offset": [ -15, 10 ],
+                                "size": [ "20%", "100%" ],
+                                "layer": 10
+                            }
+                        },
+                        {
+                            "buttons_scroll@common.scrolling_panel": {
+                                "anchor_from": "top_left",
+                                "anchor_to": "top_left",
+                                "$show_background": false,
+                                "size": [ "100%", "100%" ],
+                                "$scrolling_content": "utilitystone.player_menu_form_inner",
+                                "$scroll_size": [ 5, "100% - 4px" ],
+                                "$scrolling_pane_size": [ "100% - 4px", "100% - 2px" ],
+                                "$scrolling_pane_offset": [ 2, 4 ],
+                                "$scroll_bar_right_padding_size": [ 0, 0 ]
+                            }
+                        }
+                    ],
+                    "bindings": [
+                        {
+                            "binding_name": "#title_text"
+                        },
+                        {
+                            "binding_type": "view",
+                            "source_property_name": "(not ((#title_text - $utilitystone) = #title_text))",
+                            "target_property_name": "#visible"
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+
+    "player_menu_form_inner": {
+        "type": "stack_panel",
+        "size": [ "100% - 4px", "100%c" ],
+        "offset": [ 36, 0 ],
+        "orientation": "vertical",
+        "anchor_from": "top_middle",
+        "anchor_to": "top_middle",
+        "factory": {
+            "name": "buttons",
+            "control_name": "utilitystone.ust_button"
+        },
+        "collection_name": "form_buttons",
+        "bindings": [
+            {
+                "binding_name": "#form_button_contents",
+                "binding_name_override": "#collection_length"
+            }
+        ]
+    },
+
+    "ust_button": {
+        "type": "stack_panel",
+        "size": [ "100%", 32 ],
+        "orientation": "horizontal",
+        "controls": [
+            {
+                "icon_panel": {
+                    "type": "panel",
+                    "size": [ 40, "100%" ],
+                    "anchor_from": "left_middle",
+                    "anchor_to": "left_middle",
+                    "offset": [ 4, 0 ],
+                    "bindings": [
+                        {
+                            "binding_type": "view",
+                            "source_control_name": "icon_image",
+                            "resolve_sibling_scope": true,
+                            "source_property_name": "(not ((#texture = '') or (#texture = 'loading')))",
+                            "target_property_name": "#visible"
+                        }
+                    ],
+                    "controls": [
+                        {
+                            "icon_image": {
+                                "type": "image",
+                                "layer": 5,
+                                "size": [ 28, 28 ],
+                                "anchor_from": "center",
+                                "anchor_to": "center",
+                                "texture": "#form_button_texture",
+                                "bindings": [
+                                    {
+                                        "binding_name": "#form_button_texture",
+                                        "binding_name_override": "#texture",
+                                        "binding_type": "collection",
+                                        "binding_collection_name": "form_buttons"
+                                    },
+                                    {
+                                        "binding_name": "#form_button_texture_file_system",
+                                        "binding_name_override": "#texture_file_system",
+                                        "binding_type": "collection",
+                                        "binding_collection_name": "form_buttons"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "form_button@common_buttons.light_text_button": {
+                    "$pressed_button_name": "button.form_button_click",
+                    "anchor_from": "left_middle",
+                    "anchor_to": "left_middle",
+                    "size": [ "fill", 32 ],
+                    "offset": [ 40, 0 ],
+                    "$border_visible": false,
+                    "$button_text": "#form_button_text",
+                    "$button_text_binding_type": "collection",
+                    "$button_text_grid_collection_name": "form_buttons",
+                    "$button_text_max_size": [ "100% - 16px", 20 ],
+                    "$default_button_texture": "textures/ui/default_c_button",
+                    "$hover_button_texture": "textures/ui/hover_c_button",
+                    "$pressed_button_texture": "textures/ui/pressed_c_button",
+                    "$default_text_color|default": "white",
+                    "$hover_text_color|default": "white",
+                    "$pressed_text_color|default": "white",
+                    "$locked_text_color|default": "white",
+                    "$font_type": "MinecraftTen",
+                    "bindings": [
+                        {
+                            "binding_type": "collection_details",
+                            "binding_collection_name": "form_buttons"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}

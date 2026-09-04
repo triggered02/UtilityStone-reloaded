@@ -37,7 +37,7 @@ def openPlayerMenu(plugin: UtilityStone, player) -> bool:
         if hasAnyTravel:
             addHeader(form, "Travel")
             if hasHomesAccess:
-                addButton(form, "Homes", on_click=fm.wrapClick(player, lambda: _openHomes(plugin, player), "homes"))
+                addButton(form, "Homes", icon="textures/icons/Homes_Bed", on_click=fm.wrapClick(player, lambda: _openHomes(plugin, player), "homes"))
             if hasWarpsAccess:
                 addButton(form, "Warps", on_click=fm.wrapClick(player, lambda: _openWarps(plugin, player), "warps"))
             if hasSpawnAccess:
