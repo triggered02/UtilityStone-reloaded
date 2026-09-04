@@ -7,7 +7,13 @@ from endstone.form import ActionForm, Label, Header, Divider, ModalForm, Message
 # token renders empty in-game; the §❖ prefix namespaces it so other resource
 # packs cannot collide. The server_form.json factory detects these via
 # bindings (#title_text - $signature).
-SIGNATURE_COMMUNITY = "§❖§C§D"
+#
+# COMMUNITY additionally carries the §a§№§r color-mode prefix that Obsidian's
+# BP prepends before §❖§C§D. This makes the first 8 UTF-8 bytes of the title
+# match the property_bag key "#§a§№", which resolves "c_button" and selects
+# textures/ui/default_c_button.png for the button background. Without the prefix,
+# the property_bag lookup misses and common.button falls back to its built-in visuals.
+SIGNATURE_COMMUNITY = "§a§№§r§❖§C§D"
 SIGNATURE_ADMIN = "§❖§A§D"
 SIGNATURE_COMMUNITY_MODAL = "§❖§C§X"
 SIGNATURE_ADMIN_MODAL = "§❖§A§X"
@@ -20,8 +26,9 @@ def buildActionMenu(title: str, description: str = "") -> ActionForm:
 def stylePlayerMenu(title: str, description: str = "") -> ActionForm:
     """Build the /menu player ActionForm with the community styling signature.
 
-    This is the ONLY signature used in PHASE 1. The token is invisible in-game
-    but lets the resource pack select the Obsidian community panel.
+    The signature carries an invisible §a§№§r color-mode prefix so the
+    property_bag in custom_forms.credit_state_* can resolve the green/blue/purple
+    pill texture from the first 8 UTF-8 bytes of the title. See SIGNATURE_COMMUNITY.
     """
     return ActionForm(title=SIGNATURE_COMMUNITY + title, content=description)
 
