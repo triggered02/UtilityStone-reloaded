@@ -1,472 +1,504 @@
-# UtilityStone
+# UtilityStone Reloaded
 
-UtilityStone is an essentials style toolkit for [Endstone](https://endstone.dev) servers. It is a spin off of
-the Minecraft Essentials add on, rebuilt from scratch against the Endstone Python API so that it stays quick on
-a busy realm rather than on an empty test world. It also ships an optional two way Discord chat relay.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Endstone](https://img.shields.io/badge/Endstone-0.11%2B-blue.svg)](https://endstone.dev)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-7289da.svg)](https://discord.gg/gHpgjRTCnu)
 
-The whole plugin is built around one rule: work that happens once per command is cheap, work that happens once
-per tick is not. Nothing in UtilityStone runs on a per movement or per tick basis, and nothing writes to disk
-while the server thread is waiting.
+An essentials-style utility toolkit and UI suite for [Endstone](https://endstone.dev) Bedrock Dedicated Servers, optimized for busy 50+ player realms. Rebuilt against Endstone's Python API, **UtilityStone Reloaded** offers zero-lag movement handling, asynchronous disk I/O, custom resource-pack UI styling, in-game player administration, rank management, safe area protection, daily login rewards, and an optional two-way Discord relay.
 
-Created by Ozz. Released under the MIT licence, so you are free to copy, change and redistribute it as long as
-the copyright notice and licence stay with it.
+---
+
+## 📜 Fork Attribution & Vibe-Coding Notice
+
+- **Original Project & Creator**: UtilityStone Reloaded is a **fork** of the original [UtilityStone](https://github.com/ozorical/UtilityStone) project created by **Ozz**. All original core concepts, initial architecture, and foundation are attributed to Ozz.
+- **Fork Maintainer**: Maintained and expanded by **Tigger02** (`triggered02`).
+- **Development Style**: This fork is **completely vibe-coded** — built, expanded, and maintained through AI-assisted and vibe-coded engineering workflows rather than traditional manual software writing.
+- **Licensing & Copyright**: Released under the **MIT License**. Original copyright notices and licensing details are fully preserved.
+
+---
+
+## 💬 Community & Support
+
+Need help setting up, found a bug, or want to discuss feature requests? Join our community on Discord:
+
+👉 **[Join the UtilityStone Reloaded Discord Server](https://discord.gg/gHpgjRTCnu)** 👈
+
+---
+
+## 📋 Table of Contents
+
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [UI Architecture & Server Menu](#ui-architecture--server-menu)
+- [Feature Overview](#feature-overview)
+  - [Server Menu & Quick-Access Item](#server-menu--quick-access-item)
+  - [Travel & Teleportation (TPA, Spawn, Back)](#travel--teleportation-tpa-spawn-back)
+  - [Homes System](#homes-system)
+  - [Warps System](#warps-system)
+  - [Expanded Utilities](#expanded-utilities)
+  - [Admin Panel & Player Inspector](#admin-panel--player-inspector)
+  - [Editable Inventory & Ender Chest Management](#editable-inventory--ender-chest-management)
+  - [Ranks & Permission Management](#ranks--permission-management)
+  - [Safe Area Protection](#safe-area-protection)
+  - [Daily Rewards System](#daily-rewards-system)
+  - [Kits System](#kits-system)
+  - [Player State & Moderation](#player-state--moderation)
+  - [Messaging, Chat & Ignore System](#messaging-chat--ignore-system)
+  - [Discord Two-Way Relay](#discord-two-way-relay)
+  - [USTBridge Integration API](#ustbridge-integration-api)
+- [Commands Reference](#commands-reference)
+- [Permissions Reference](#permissions-reference)
+- [Configuration Guide (`config.toml`)](#configuration-guide-configtoml)
+- [Development & Testing](#development--testing)
+- [License](#license)
+
+---
 
 ## Requirements
 
-- Endstone 0.11 or newer (built and tested against 0.11.9, Minecraft Bedrock 26.44)
-- Python 3.10 or newer
+- **Endstone**: 0.11 or newer (tested against Endstone 0.11.10, Bedrock Dedicated Server 1.26.45)
+- **Python**: 3.10 or newer
+- **Dependencies**: No third-party Python packages required. The optional Discord relay uses `aiohttp`, which ships bundled with Endstone.
 
-UtilityStone has no third party dependencies. The Discord relay uses aiohttp, which already ships with
-Endstone, so there is nothing extra to install.
+---
 
-## Installing
+## Installation
 
-1. Download or build `endstone_utilitystone-1.0.1-py3-none-any.whl`.
-2. Drop the wheel into your server `plugins` folder.
-3. Start the server. UtilityStone writes `plugins/utilitystone/config.toml` on first run.
-4. Edit the config if you want, then run `/utilitystone reload`.
+1. **Download or Build the Wheel**: Obtain `endstone_utilitystone-1.0.1-py3-none-any.whl` (or build it yourself using `python -m build --wheel`).
+2. **Install the Plugin**:
+   - Place `endstone_utilitystone-1.0.1-py3-none-any.whl` into your server's `plugins/` directory (or `pip install` it directly into your Endstone Python virtual environment).
+3. **Install the Resource Pack**:
+   - Copy `resource_pack/` (or package it as `UtilityStone.mcpack`) to `bedrock_server/resource_packs/UtilityStone/`.
+   - Update your world's resource pack pin in `bedrock_server/worlds/<world_name>/world_resource_packs.json`:
+     ```json
+     [
+       {
+         "pack_id": "66983660-16d8-4d6d-8636-1c8657a66a6b",
+         "version": [1, 0, 6]
+       }
+     ]
+     ```
+4. **Start the Server**: Launch Endstone. On first startup, UtilityStone creates `plugins/utilitystone/config.toml` and json storage files.
+5. **Reloading**: Run `/utilitystone reload` in-game or from the console whenever configuration changes are made.
 
-To build the wheel yourself:
+---
 
-```
-pip install build
-python -m build --wheel
-```
+## UI Architecture & Server Menu
 
-## Commands
+UtilityStone Reloaded features an **Obsidian Essentials-inspired UI suite** that runs seamlessly on Minecraft Bedrock:
 
-Every command is listed with the permission that guards it. Arguments in `<angle brackets>` are required and
-arguments in `[square brackets]` are optional.
+- **Logic Ownership**: Python/Endstone owns all UI forms (`ActionForm`, `ModalForm`), callbacks, permissions, menu state, and business logic.
+- **Visual Rendering**: The Bedrock Resource Pack detects UtilityStone's protocol marker (`§❖§U§S§T§D`) prepended to form titles via `server_form.json` and routes rendering to `utilitystone.json`. Buttons display nine-slice card backgrounds (`c_button`), pixel-art icons, hover/pressed visual states, and right-hand curved chevrons (`Arrow_Right_Curved`).
+- **Navigation Architecture**:
+  ```
+  Server Menu (/menu)
+  ├── Travel ───────────► Homes, Spawn, Travel Options ───► Back ──► Server Menu
+  ├── Warps ────────────► Available Warps List ────────────► Back ──► Server Menu
+  ├── Utilities ────────► Kits, Info, TPA, AFK, Rewards ──► Back ──► Server Menu
+  ├── Admin Panel ──────► Player Inspector, Ranks, etc. ──► Back ──► Server Menu
+  └── Back ─────────────► Closes Form
+  ```
+  Every submenu has an explicit `Back` button returning to `Server Menu`, while the `Back` button on `Server Menu` safely closes the form.
 
-### Homes
+---
 
-| Command | Permission | Default | What it does |
-| --- | --- | --- | --- |
-| `/sethome [name]` | `utilitystone.command.sethome` | everyone | Saves where you stand. The name defaults to `home`. |
-| `/home [name]` | `utilitystone.command.home` | everyone | Travels to a home. With one home saved the name is optional. |
-| `/delhome <name>` | `utilitystone.command.delhome` | everyone | Deletes a home. |
-| `/homes` | `utilitystone.command.homes` | everyone | Lists your homes and how many you have left. |
+## Feature Overview
 
-### Warps and spawn
+### Server Menu & Quick-Access Item
+- **`/menu` Command**: Opens the central **Server Menu**. Compatible with `/usttest` alias.
+- **Server Menu Item**: Configurable quick-access item (defaults to `minecraft:written_book` in slot 8, titled `"Server Menu"`).
+  - Given automatically on join when enabled in `config.toml` (`[menuItem]`).
+  - Players can claim the item anytime via `/menu item` (or `/menu getitem`).
+  - Right-clicking the item in-game checks `utilitystone.command.menu` permission and opens `Server Menu`.
 
-| Command | Permission | Default | What it does |
-| --- | --- | --- | --- |
-| `/warp [name]` | `utilitystone.command.warp` | everyone | Travels to a warp, or lists warps when the name is left off. |
-| `/warps` | `utilitystone.command.warps` | everyone | Lists the warps you are allowed to use. |
-| `/setwarp <name>` | `utilitystone.command.setwarp` | operator | Creates or moves a warp. |
-| `/delwarp <name>` | `utilitystone.command.delwarp` | operator | Deletes a warp. |
-| `/spawn` | `utilitystone.command.spawn` | everyone | Travels to the spawn point. |
-| `/setspawn` | `utilitystone.command.setspawn` | operator | Sets the spawn point to where you stand. |
+### Travel & Teleportation (TPA, Spawn, Back)
+- **`/tpa <player>` & `/tpahere <player>`**: Send teleport or summon requests with configurable warmup delays, cooldown timers, request timeouts, and movement-cancellation checks.
+- **`/tpaccept` & `/tpdeny` & `/tpcancel`**: Manage incoming and outgoing teleport requests.
+- **`/spawn` & `/setspawn`**: Set and travel to the world spawn point. Optional `teleportOnFirstJoin` setting.
+- **`/back`**: Returns to your previous teleport origin or death location. Remembers up to 5 positions per player.
 
-### Teleporting
+### Homes System
+- **`/sethome [name]`, `/home [name]`, `/delhome <name>`, `/homes`**: Save, travel to, delete, and list personal homes.
+- **Home Limits**: Configurable default home limit (default: 3). Unlimited homes granted via `utilitystone.homes.unlimited` permission. Per-permission limits can be configured under `[homes.limits]`.
 
-| Command | Permission | Default | What it does |
-| --- | --- | --- | --- |
-| `/tpa <player>` | `utilitystone.command.tpa` | everyone | Asks to teleport to somebody. |
-| `/tpahere <player>` | `utilitystone.command.tpahere` | everyone | Asks somebody to teleport to you. |
-| `/tpaccept [player]` | `utilitystone.command.tpaccept` | everyone | Accepts a request. Alias `/tpyes`. |
-| `/tpdeny [player]` | `utilitystone.command.tpdeny` | everyone | Turns a request down. Alias `/tpno`. |
-| `/tpcancel` | `utilitystone.command.tpcancel` | everyone | Withdraws the request you sent. |
-| `/back` | `utilitystone.command.back` | everyone | Returns to where you last teleported from, or where you died. |
+### Warps System
+- **`/warp [name]`, `/warps`, `/setwarp <name>`, `/delwarp <name>`**: Public warp points created by admins and accessible via the `/warps` menu.
+- **Per-Warp Permissions**: Optional `requirePerWarpPermission = true` setting requires `utilitystone.warp.<name>` to access specific warps.
 
-### Player state
+### Expanded Utilities
+The **Utilities** section under `/menu` aggregates player-facing utility tools:
+- **Kits**: View and claim available kits.
+- **Daily Reward**: View daily streak, time remaining, and claim login rewards.
+- **Player Info**: View your health, location coordinates, gamemode, ping latency, total playtime, first/last seen timestamps, AFK status, and mute status.
+- **Homes**: Quick access to your saved homes.
+- **Teleport**: Quick access to TPA requests.
+- **AFK**: Toggle AFK status directly from the UI.
 
-| Command | Permission | Default | What it does |
-| --- | --- | --- | --- |
-| `/heal [player]` | `utilitystone.command.heal` | operator | Refills health. |
-| `/feed [player]` | `utilitystone.command.feed` | operator | Refills hunger. |
-| `/fly [player]` | `utilitystone.command.fly` | operator | Toggles flight. |
-| `/god [player]` | `utilitystone.command.god` | operator | Toggles damage immunity. |
-| `/speed <amount> [player]` | `utilitystone.command.speed` | operator | Sets walk or fly speed from 0.1 to 10. |
-| `/repair` | `utilitystone.command.repair` | operator | Repairs the item in your main hand. |
+### Admin Panel & Player Inspector
+Admins with `utilitystone.admin.gui` permission access the **Admin Panel** (`/menu admin`), containing:
+- **Player List / Inspector**: Inspect online players, view health, ping, coordinates, dimension, gamemode, first seen, rank, AFK status, and active mutes.
+- **Player Management Actions**: Teleport To Player, Teleport Player To Me, View Homes, View Inventory, View Ender Chest, Heal, Feed, Fly Toggle, God Mode Toggle, Mute (30m/1h/24h), Unmute, and Assign Rank.
+- **Admin Management Sections**: Homes, Warps, Spawn, Kits, Safe Areas, Ranks, Daily Rewards, Plugin Info, Reload Config, and Live Configuration Editor.
 
-Running any of these on somebody else needs the matching `.others` permission, for example
-`utilitystone.command.heal.others`.
+### Editable Inventory & Ender Chest Management
+Full in-game item and container editing built into the Admin Player Inspector:
+- **Permissions**:
+  - View: `utilitystone.admin.players.inventory.view` / `utilitystone.admin.inventory.view`
+  - Edit: `utilitystone.admin.players.inventory.edit` / `utilitystone.admin.inventory.edit` (default: `op`)
+  - Ender Chest View: `utilitystone.admin.players.enderchest.view` / `utilitystone.admin.enderchest.view`
+  - Ender Chest Edit: `utilitystone.admin.players.enderchest.edit` / `utilitystone.admin.enderchest.edit` (default: `op`)
+- **Paginated Editor**: Displays 7 slots per page (`ITEMS_PER_PAGE`) with slot numbers, current item types, amounts, and pending edit tags.
+- **Slot Modal Editor**: Clicking any slot opens a `ModalForm` exposing:
+  - Item Identifier (e.g. `minecraft:diamond`, or `air` to clear)
+  - Amount (0 to 64)
+  - Data / Aux Value (integer)
+- **Atomic Validation & Safety**:
+  - Local edits stay in memory and **never** mutate the live container while being edited.
+  - On **Save All Changes**, every slot is validated (`ItemStack` creation, item ID, amount, data range).
+  - If any slot validation fails, the entire batch is aborted without partial updates.
+  - Re-checks edit permissions and target player validity before applying.
+  - Logs audit entry with admin name, target player, and changed slot count.
 
-### Chat and messaging
+### Ranks & Permission Management
+- **`/rank` Commands**: `list`, `info <rank>`, `create <rank>`, `delete <rank>`, `set <player> <rank>`, `remove <player>`, `player <target>`.
+- **Rank Properties**: Priorities, display prefixes, display suffixes, inheritance nodes (`utilitystone.command.*`), and default rank assignment.
+- **Chat Formatting**: Custom rank prefixes and suffixes integrate directly into public chat formatting (`{prefix}{name}{suffix}`).
 
-| Command | Permission | Default | What it does |
-| --- | --- | --- | --- |
-| `/pm <player> <message>` | `utilitystone.command.pm` | everyone | Sends a private message. Alias `/dm`. |
-| `/reply <message>` | `utilitystone.command.reply` | everyone | Replies to the last message you got. Alias `/r`. |
-| `/ignore <player>` | `utilitystone.command.ignore` | everyone | Hides that player from your chat and blocks their private messages. |
-| `/unignore <player>` | `utilitystone.command.unignore` | everyone | Undoes an ignore. |
-| `/ignorelist` | `utilitystone.command.ignorelist` | everyone | Lists who you are ignoring. |
-| `/broadcast <message>` | `utilitystone.command.broadcast` | operator | Sends a highlighted message to everyone. |
+### Safe Area Protection
+- **`/safearea` Commands**: `set <name> <radius>`, `remove <name>`, `list`, `info <name>`, `enable <name>`, `disable <name>`. Alias `/sa`.
+- **Protection**: Defines spherical/cuboid protected zones where player damage, block breaking, and pvp are restricted.
+- **Bypass**: Granted via `utilitystone.safearea.bypass` permission or `utilitystone.admin` tag.
 
-### Moderation
+### Daily Rewards System
+- **`/dailyreward` (`claim`, `status`)**: Player daily login streak tracking and reward claims.
+- **Milestone Rewards**: Configurable reward commands executed when reaching specific streak thresholds (e.g. Day 1, Day 7, Day 30).
+- **Admin Management**: Admins can view player streak details, reset streaks (`/dailyreward reset`), and manage milestone reward commands in-game.
 
-| Command | Permission | Default | What it does |
-| --- | --- | --- | --- |
-| `/tempban <player> <duration> [reason]` | `utilitystone.command.tempban` | operator | Bans for a set length, or `perm` for good. |
-| `/mute <player> <duration> [reason]` | `utilitystone.command.mute` | operator | Blocks a player from chatting. |
-| `/unmute <player>` | `utilitystone.command.unmute` | operator | Lets a muted player chat again. |
+### Kits System
+- **`/kit [name]` & `/kits`**: Claim equipment/item kits configured in `config.toml`.
+- **Features**: Support for item display names, lore, enchantments (`efficiency = 3`), cooldowns (`24h`), per-kit permissions (`utilitystone.kit.tools`), and automatic ground-dropping for overflow items.
 
-Bedrock already provides `/ban` and `/unban`, so UtilityStone does not replace them. `/tempban` adds the
-timed bans vanilla lacks, and accepts `perm` when you want a permanent ban with a reason attached. All of
-them write to the same server ban list, so vanilla `/unban` lifts a UtilityStone ban and the entries survive
-restarts. Mutes are stored by UtilityStone and expire on their own.
+### Player State & Moderation
+- **State Commands**: `/heal`, `/feed`, `/fly`, `/god`, `/speed <0.1-10.0>`, `/repair` (item in main hand). All support `.others` permissions (e.g. `utilitystone.command.heal.others`).
+- **Moderation Commands**: `/tempban <player> <duration|perm> [reason]`, `/mute <player> <duration> [reason]`, `/unmute <player>`.
+- **Duration Parser**: Supports `30s`, `15m`, `2h`, `7d`, `3w`, `1mo`, `1y`, `1d12h`, `perm`, `forever`.
 
-Durations accept `30s`, `15m`, `2h`, `7d`, `3w`, `1mo`, `1y` and combinations such as `1d12h`. A bare number is
-read as minutes. Use `perm` or `forever` for something that never expires.
+### Messaging, Chat & Ignore System
+- **Private Messaging**: `/pm <player> <message>` (alias `/dm`), `/reply <message>` (alias `/r`).
+- **Ignore System**: `/ignore <player>`, `/unignore <player>`, `/ignorelist`. Ignores public chat and private messages from blocked players.
+- **Broadcasting**: `/broadcast <message>` (alias `/bc`).
+- **Chat Management**: UtilityStone manages public chat formatting (`manageFormat = true`) to enforce ignore filtering and rank prefix formatting.
 
-### Kits
+### Discord Two-Way Relay
+Optional Discord bot integration shipping with no required external Python dependencies (uses `aiohttp` bundled with Endstone):
+- **Features**: 2-way chat relay, death message relay, join/leave notices, server start/stop notifications.
+- **Security & Efficiency**: Async websocket gateway (`gateway.discord.gg`), REST API v10, bounded thread-safe queues, batched message sending (rate-limit friendly), message truncation, and stripped `@everyone` / `@here` mentions.
+- **Configuration**: Store bot token and channel ID in `plugins/utilitystone/.env` (`DISCORD_BOT_TOKEN` & `DISCORD_CHANNEL_ID`).
 
-| Command | Permission | Default | What it does |
-| --- | --- | --- | --- |
-| `/kit [name]` | `utilitystone.command.kit` | everyone | Claims a kit, or lists kits when the name is left off. |
-| `/kits` | `utilitystone.command.kits` | everyone | Lists the kits you can claim. |
+### USTBridge Integration API
+Public integration surface exposed for diagnostic and third-party Endstone plugins (`endstone_ust_bridge_test`):
+- **Class**: `endstone_utilitystone.integrations.USTBridgeIntegration`
+- **Resolution**: `USTBridgeIntegration.from_plugin_manager(server.plugin_manager)`
+- **Entry point**: `integration.open_test_form(player)` opens a real UtilityStone ActionForm through UtilityStone's UI pipeline.
+- **Diagnostic Commands**: `/usttest` (opens Server Menu), `/ustdiag` (standalone diagnostic form).
 
-### Information
+---
 
-| Command | Permission | Default | What it does |
-| --- | --- | --- | --- |
-| `/who` | `utilitystone.command.who` | everyone | Lists who is online and who is AFK. Alias `/online`. |
-| `/ping [player]` | `utilitystone.command.ping` | everyone | Shows connection latency. |
-| `/playtime [player]` | `utilitystone.command.playtime` | everyone | Shows total time played. |
-| `/seen <player>` | `utilitystone.command.seen` | everyone | Shows when somebody was last online. Works offline. |
-| `/whois <player>` | `utilitystone.command.whois` | everyone | Shows detail about an online player. |
-| `/afk [reason]` | `utilitystone.command.afk` | everyone | Marks you as away. |
-| `/utilitystone [info\|reload]` | `utilitystone.command.utilitystone` | operator | Shows status or reloads the config. Alias `/ustone`. |
+## Commands Reference
 
-### Extra permissions
+| Command | Syntax | Permission Node | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **`/menu`** | `/menu [action]` | `utilitystone.command.menu` | Everyone | Opens the Server Menu (aliases: `/usttest`, `/menu item`). |
+| **`/sethome`** | `/sethome [name]` | `utilitystone.command.sethome` | Everyone | Saves a home at your current location. |
+| **`/home`** | `/home [name]` | `utilitystone.command.home` | Everyone | Teleports to a saved home. |
+| **`/delhome`** | `/delhome <name>` | `utilitystone.command.delhome` | Everyone | Deletes a saved home. |
+| **`/homes`** | `/homes` | `utilitystone.command.homes` | Everyone | Lists your saved homes and limits. |
+| **`/warp`** | `/warp [name]` | `utilitystone.command.warp` | Everyone | Teleports to a warp or lists warps. |
+| **`/warps`** | `/warps` | `utilitystone.command.warps` | Everyone | Lists accessible warps. |
+| **`/setwarp`** | `/setwarp <name>` | `utilitystone.command.setwarp` | Operator | Creates or updates a warp location. |
+| **`/delwarp`** | `/delwarp <name>` | `utilitystone.command.delwarp` | Operator | Deletes a warp. |
+| **`/spawn`** | `/spawn` | `utilitystone.command.spawn` | Everyone | Teleports to the spawn point. |
+| **`/setspawn`** | `/setspawn` | `utilitystone.command.setspawn` | Operator | Sets the server spawn point. |
+| **`/tpa`** | `/tpa <player>` | `utilitystone.command.tpa` | Everyone | Sends a teleport request to a player. |
+| **`/tpahere`** | `/tpahere <player>` | `utilitystone.command.tpahere` | Everyone | Requests a player to teleport to you. |
+| **`/tpaccept`** | `/tpaccept [player]` | `utilitystone.command.tpaccept` | Everyone | Accepts a teleport request (alias `/tpyes`). |
+| **`/tpdeny`** | `/tpdeny [player]` | `utilitystone.command.tpdeny` | Everyone | Denies a teleport request (alias `/tpno`). |
+| **`/tpcancel`** | `/tpcancel` | `utilitystone.command.tpcancel` | Everyone | Cancels your outgoing teleport request. |
+| **`/back`** | `/back` | `utilitystone.command.back` | Everyone | Teleports to your previous location or death spot. |
+| **`/heal`** | `/heal [player]` | `utilitystone.command.heal` | Operator | Restores health (others: `.heal.others`). |
+| **`/feed`** | `/feed [player]` | `utilitystone.command.feed` | Operator | Restores hunger (others: `.feed.others`). |
+| **`/fly`** | `/fly [player]` | `utilitystone.command.fly` | Operator | Toggles flight (others: `.fly.others`). |
+| **`/god`** | `/god [player]` | `utilitystone.command.god` | Operator | Toggles invulnerability (others: `.god.others`). |
+| **`/speed`** | `/speed <val> [player]`| `utilitystone.command.speed` | Operator | Sets walk/fly speed (0.1–10.0) (others: `.speed.others`). |
+| **`/repair`** | `/repair` | `utilitystone.command.repair` | Operator | Repairs the item held in your main hand. |
+| **`/pm`** | `/pm <player> <msg>` | `utilitystone.command.pm` | Everyone | Sends a private message (alias `/dm`). |
+| **`/reply`** | `/reply <msg>` | `utilitystone.command.reply` | Everyone | Replies to the last private message (alias `/r`). |
+| **`/ignore`** | `/ignore <player>` | `utilitystone.command.ignore` | Everyone | Blocks chat and PMs from a player. |
+| **`/unignore`** | `/unignore <player>`| `utilitystone.command.unignore` | Everyone | Unblocks a player. |
+| **`/ignorelist`**| `/ignorelist` | `utilitystone.command.ignorelist`| Everyone | Lists players you are currently ignoring. |
+| **`/broadcast`** | `/broadcast <msg>` | `utilitystone.command.broadcast`| Operator | Broadcasts an announcement to the server (alias `/bc`). |
+| **`/tempban`** | `/tempban <p> <t> [r]`| `utilitystone.command.tempban` | Operator | Temporarily or permanently bans a player. |
+| **`/mute`** | `/mute <p> <t> [r]` | `utilitystone.command.mute` | Operator | Mutes a player for a set duration. |
+| **`/unmute`** | `/unmute <player>` | `utilitystone.command.unmute` | Operator | Unmutes a player. |
+| **`/kit`** | `/kit [name]` | `utilitystone.command.kit` | Everyone | Claims a kit or lists available kits. |
+| **`/kits`** | `/kits` | `utilitystone.command.kits` | Everyone | Lists available kits. |
+| **`/who`** | `/who` | `utilitystone.command.who` | Everyone | Lists online players and AFK status (alias `/online`). |
+| **`/ping`** | `/ping [player]` | `utilitystone.command.ping` | Everyone | Displays connection latency (others: `.ping.others`). |
+| **`/playtime`** | `/playtime [player]` | `utilitystone.command.playtime` | Everyone | Shows total playtime (others: `.playtime.others`). |
+| **`/seen`** | `/seen <player>` | `utilitystone.command.seen` | Everyone | Shows when a player was last online. |
+| **`/whois`** | `/whois <player>` | `utilitystone.command.whois` | Everyone | Displays detailed info on an online player. |
+| **`/afk`** | `/afk [reason]` | `utilitystone.command.afk` | Everyone | Toggles AFK status with an optional reason. |
+| **`/safearea`** | `/safearea <subcmd>`| `utilitystone.command.safearea`| Everyone | Manage safe areas (alias `/sa`). |
+| **`/rank`** | `/rank <subcmd>` | `utilitystone.admin.ranks.view`| Operator | Manage ranks, priorities, and assignments. |
+| **`/dailyreward`**| `/dailyreward [cmd]`| `utilitystone.command.dailyreward`| Everyone | Claim daily reward or check streak status. |
+| **`/utilitystone`**| `/utilitystone [cmd]`| `utilitystone.command.utilitystone`| Operator | Reload config or show status (alias `/ustone`). |
 
-| Permission | Default | What it grants |
-| --- | --- | --- |
-| `utilitystone.homes.unlimited` | operator | Saves homes with no limit. |
-| `utilitystone.teleport.instant` | operator | Skips the teleport warmup. |
-| `utilitystone.teleport.nocooldown` | operator | Skips the teleport cooldown. |
-| `utilitystone.chat.color` | operator | Uses `&` colour codes in chat. |
-| `utilitystone.kit.tools` | operator | Claims the example `tools` kit. |
+---
 
-## Commands that are deliberately missing
+## Permissions Reference
 
-Bedrock already ships `/kick`, `/list`, `/msg`, `/tell`, `/w`, `/tp`, `/ban` and `/unban`. UtilityStone does
-not register any of those names, because taking over a vanilla command is a good way to break the client side
-command tree for every player on the server. The replacements are `/who` for `/list` and `/pm` plus `/reply`
-for messaging. Kicking, coordinate teleports and permanent bans stay on the vanilla commands, which already
-work, and `/tempban` covers the timed bans vanilla does not offer.
+| Permission Node | Description | Default Level |
+| :--- | :--- | :--- |
+| `utilitystone.command.menu` | Access `/menu` and the Server Menu item | Everyone (`true`) |
+| `utilitystone.command.sethome` | Save personal homes | Everyone (`true`) |
+| `utilitystone.command.home` | Teleport to personal homes | Everyone (`true`) |
+| `utilitystone.command.delhome` | Delete personal homes | Everyone (`true`) |
+| `utilitystone.command.homes` | List personal homes | Everyone (`true`) |
+| `utilitystone.command.warp` | Use warps | Everyone (`true`) |
+| `utilitystone.command.warps` | List accessible warps | Everyone (`true`) |
+| `utilitystone.command.setwarp` | Create or update warps | Operator (`op`) |
+| `utilitystone.command.delwarp` | Delete warps | Operator (`op`) |
+| `utilitystone.command.spawn` | Teleport to server spawn | Everyone (`true`) |
+| `utilitystone.command.setspawn` | Set server spawn point | Operator (`op`) |
+| `utilitystone.command.tpa` | Send TPA requests | Everyone (`true`) |
+| `utilitystone.command.tpahere` | Send TPAHERE requests | Everyone (`true`) |
+| `utilitystone.command.tpaccept` | Accept TPA requests | Everyone (`true`) |
+| `utilitystone.command.tpdeny` | Deny TPA requests | Everyone (`true`) |
+| `utilitystone.command.tpcancel` | Cancel TPA requests | Everyone (`true`) |
+| `utilitystone.command.back` | Return to previous/death location | Everyone (`true`) |
+| `utilitystone.command.heal` | Heal self | Operator (`op`) |
+| `utilitystone.command.heal.others` | Heal other players | Operator (`op`) |
+| `utilitystone.command.feed` | Feed self | Operator (`op`) |
+| `utilitystone.command.feed.others` | Feed other players | Operator (`op`) |
+| `utilitystone.command.fly` | Toggle flight for self | Operator (`op`) |
+| `utilitystone.command.fly.others` | Toggle flight for others | Operator (`op`) |
+| `utilitystone.command.god` | Toggle god mode for self | Operator (`op`) |
+| `utilitystone.command.god.others` | Toggle god mode for others | Operator (`op`) |
+| `utilitystone.command.speed` | Change movement speed | Operator (`op`) |
+| `utilitystone.command.speed.others` | Change speed for others | Operator (`op`) |
+| `utilitystone.command.repair` | Repair held item | Operator (`op`) |
+| `utilitystone.command.pm` | Send private messages | Everyone (`true`) |
+| `utilitystone.command.reply` | Reply to private messages | Everyone (`true`) |
+| `utilitystone.command.ignore` | Ignore players | Everyone (`true`) |
+| `utilitystone.command.unignore` | Stop ignoring players | Everyone (`true`) |
+| `utilitystone.command.ignorelist` | View ignore list | Everyone (`true`) |
+| `utilitystone.command.broadcast` | Broadcast server announcements | Operator (`op`) |
+| `utilitystone.command.tempban` | Temporarily ban players | Operator (`op`) |
+| `utilitystone.command.mute` | Mute players | Operator (`op`) |
+| `utilitystone.command.unmute` | Unmute players | Operator (`op`) |
+| `utilitystone.command.kit` | Claim kits | Everyone (`true`) |
+| `utilitystone.command.kits` | List kits | Everyone (`true`) |
+| `utilitystone.command.who` | View online players | Everyone (`true`) |
+| `utilitystone.command.ping` | View own ping | Everyone (`true`) |
+| `utilitystone.command.ping.others` | View another player's ping | Operator (`op`) |
+| `utilitystone.command.playtime` | View own playtime | Everyone (`true`) |
+| `utilitystone.command.playtime.others`| View another player's playtime | Operator (`op`) |
+| `utilitystone.command.seen` | View last seen timestamp | Everyone (`true`) |
+| `utilitystone.command.whois` | Inspect online player details | Everyone (`true`) |
+| `utilitystone.command.afk` | Toggle AFK status | Everyone (`true`) |
+| `utilitystone.command.dailyreward` | Claim daily rewards | Everyone (`true`) |
+| `utilitystone.command.safearea` | View/use safearea info | Everyone (`true`) |
+| `utilitystone.command.safearea.set` | Create/edit safe areas | Operator (`op`) |
+| `utilitystone.command.safearea.remove`| Delete safe areas | Operator (`op`) |
+| `utilitystone.command.utilitystone`| Reload/manage plugin | Operator (`op`) |
+| `utilitystone.admin.gui` | Access the Admin Panel | Operator (`op`) |
+| `utilitystone.admin.players.inspect`| Inspect players in Admin Panel | Operator (`op`) |
+| `utilitystone.admin.homes.view` | View other players' homes | Operator (`op`) |
+| `utilitystone.admin.homes.teleport`| Teleport to other players' homes | Operator (`op`) |
+| `utilitystone.admin.homes.delete` | Delete other players' homes | Operator (`op`) |
+| `utilitystone.admin.inventory.view`| View player inventories | Operator (`op`) |
+| `utilitystone.admin.inventory.edit`| Edit player inventories | Operator (`op`) |
+| `utilitystone.admin.players.inventory.view` | View player inventories (alias) | Operator (`op`) |
+| `utilitystone.admin.players.inventory.edit` | Edit player inventories (alias) | Operator (`op`) |
+| `utilitystone.admin.enderchest.view` | View player ender chests | Operator (`op`) |
+| `utilitystone.admin.enderchest.edit` | Edit player ender chests | Operator (`op`) |
+| `utilitystone.admin.players.enderchest.view` | View player ender chests (alias) | Operator (`op`) |
+| `utilitystone.admin.players.enderchest.edit` | Edit player ender chests (alias) | Operator (`op`) |
+| `utilitystone.admin.ranks.view` | View rank configurations | Operator (`op`) |
+| `utilitystone.admin.ranks.create` | Create new ranks | Operator (`op`) |
+| `utilitystone.admin.ranks.edit` | Edit rank properties | Operator (`op`) |
+| `utilitystone.admin.ranks.delete` | Delete ranks | Operator (`op`) |
+| `utilitystone.admin.ranks.assign` | Assign ranks to players | Operator (`op`) |
+| `utilitystone.admin.dailyrewards.view` | View player daily reward details | Operator (`op`) |
+| `utilitystone.admin.dailyrewards.reset` | Reset player daily reward streaks | Operator (`op`) |
+| `utilitystone.admin.dailyrewards.manage`| Manage reward milestone commands | Operator (`op`) |
+| `utilitystone.safearea.bypass` | Bypass safe area protection | Operator (`op`) |
+| `utilitystone.homes.unlimited` | Save unlimited homes | Operator (`op`) |
+| `utilitystone.teleport.instant` | Skip teleport warmup delay | Operator (`op`) |
+| `utilitystone.teleport.nocooldown` | Skip teleport cooldown timer | Operator (`op`) |
+| `utilitystone.chat.color` | Use `&` color codes in chat | Operator (`op`) |
+| `utilitystone.kit.tools` | Access example `tools` kit | Operator (`op`) |
 
-## Configuration
+---
 
-The config lives at `plugins/utilitystone/config.toml`. Run `/utilitystone reload` after editing. A reload
-rereads every value and restarts the background tasks, so poll intervals take effect straight away.
+## Configuration Guide (`config.toml`)
 
-### `[storage]`
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `saveIntervalSeconds` | `30` | How often the background writer flushes changed data. Clamped to 5 to 900. |
-| `playtimeSyncSeconds` | `120` | How often playtime totals are written for online players, so a crash costs little. |
-
-### `[messages]`
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `usePrefix` | `true` | Whether plugin replies carry a prefix. |
-| `prefix` | `&8[&bUtilityStone&8]&r ` | The prefix itself. Supports `&` colour codes. |
-
-### `[homes]`
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `defaultLimit` | `3` | Homes everybody may save. |
-
-`[homes.limits]` maps a permission node to a larger allowance. A player gets the highest limit they hold. The
-shipped example gives `utilitystone.homes.vip` eight homes and `utilitystone.homes.staff` twenty. Neither node
-is granted by default, so wire them up in whatever permission manager you use.
-
-### `[warps]`
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `requirePerWarpPermission` | `false` | When true, each warp needs `utilitystone.warp.<name>`. |
-
-### `[spawn]`
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `teleportOnFirstJoin` | `false` | Sends brand new players to the spawn point one second after they join. |
-
-### `[teleport]`
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `warmupSeconds` | `3` | Delay before a teleport fires. Set to `0` to teleport instantly. |
-| `cooldownSeconds` | `5` | Wait between teleports. |
-| `requestTimeoutSeconds` | `60` | How long a `/tpa` request stays open. |
-| `cancelOnMove` | `true` | Cancels the warmup if the player walks off. |
-| `moveTolerance` | `0.75` | How far a player may drift during a warmup, in blocks. |
-| `pollTicks` | `10` | How often warmups and request expiry are checked. Ten ticks is twice a second. |
-| `rememberDeathLocation` | `true` | Lets `/back` return you to where you died. |
-| `historySize` | `5` | How many previous positions `/back` remembers per player. |
-
-### `[chat]`
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `manageFormat` | `true` | Lets UtilityStone deliver chat itself. |
-| `format` | `<{name}> {message}` | Chat layout. `{name}` and `{message}` are replaced. |
-| `afkTag` | `&7[AFK] &r` | Prefix shown in front of an AFK player's chat. |
-
-The Endstone API hands out the chat recipient list as a copy, so a plugin cannot quietly drop one reader from a
-normal chat message. To make `/ignore` actually work on public chat, UtilityStone cancels the event and sends
-the line itself to everybody who is not ignoring the speaker. The default format matches vanilla, so players
-will not notice a difference. Set `manageFormat` to `false` if another plugin owns your chat, and be aware that
-`/ignore` will then only apply to private messages.
-
-### `[afk]`
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `enabled` | `true` | Turns automatic AFK detection on. |
-| `timeoutSeconds` | `300` | Idle time before somebody is marked away. |
-| `sampleSeconds` | `5` | How often positions are sampled. |
-| `announce` | `true` | Announces AFK changes in chat. |
-
-### `[connection]`
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `joinMessage` | empty | Custom join message. `{name}` is replaced. Empty keeps the server default, `none` hides it. |
-| `quitMessage` | empty | Same, for leaving. |
-| `welcomeMessage` | empty | Private message sent to a player as they join. |
-
-### Kits
-
-Each kit is its own table, so `[kits.starter]` defines a kit called `starter`.
+Configuration is auto-generated on first load at `plugins/utilitystone/config.toml`. Run `/utilitystone reload` to apply updates in real time.
 
 ```toml
+[storage]
+saveIntervalSeconds = 30     # Flush dirty data interval (5–900s)
+playtimeSyncSeconds = 120    # Write playtime totals interval
+
+[messages]
+usePrefix = true             # Enable plugin prefix in chat replies
+prefix = "&8[&bUtilityStone&8]&r "
+
+[homes]
+defaultLimit = 3            # Default homes per player
+[homes.limits]
+"utilitystone.homes.vip" = 8
+"utilitystone.homes.staff" = 20
+
+[warps]
+requirePerWarpPermission = false # Enforce utilitystone.warp.<name> per warp
+
+[spawn]
+teleportOnFirstJoin = false  # Teleport new players to spawn on first join
+
+[teleport]
+warmupSeconds = 3            # Warmup delay before teleporting
+cooldownSeconds = 5          # Cooldown between teleports
+requestTimeoutSeconds = 60   # TPA request expiration
+cancelOnMove = true          # Cancel warmup if player moves
+moveTolerance = 0.75         # Allowed movement distance during warmup (blocks)
+pollTicks = 10               # Warmup/request check interval
+rememberDeathLocation = true # Enable /back to death spot
+historySize = 5              # Max /back history entries per player
+
+[chat]
+manageFormat = true          # Enable chat formatting & ignore filtering
+format = "<{name}> {message}"# Default chat format ({prefix}, {suffix}, {name}, {message})
+afkTag = "&7[AFK] &r"        # Chat prefix for AFK players
+
+[afk]
+enabled = true               # Auto-AFK detection
+timeoutSeconds = 300         # Idle seconds before auto-AFK
+sampleSeconds = 5            # Position sampling interval
+announce = true              # Announce AFK state changes in chat
+
+[connection]
+joinMessage = ""             # Custom join message ({name}). Empty = vanilla default
+quitMessage = ""             # Custom quit message
+welcomeMessage = ""          # Private message sent to joining player
+
+[menuItem]
+enabled = true               # Enable quick-access Server Menu item on join
+itemType = "minecraft:written_book"
+name = "Server Menu"
+lore = "Right-click to open the menu"
+slot = 8                     # Hotbar slot (0–35)
+
+[safeareas]
+enabled = true               # Safe area protection engine
+scanIntervalSeconds = 5      # Location scan frequency
+minRadius = 1                # Minimum radius
+maxRadius = 10000            # Maximum radius
+bypassPermission = "utilitystone.safearea.bypass"
+bypassTag = "utilitystone.admin"
+
+[dailyRewards]
+enabled = true               # Daily login rewards engine
+[dailyRewards.rewards]       # Streak milestone commands
+1 = ["give {player} minecraft:bread 16"]
+7 = ["give {player} minecraft:diamond 5"]
+30 = ["give {player} minecraft:netherite_ingot 1"]
+
 [kits.starter]
 cooldown = "24h"
 items = [
     { type = "minecraft:stone_sword", amount = 1 },
-    { type = "minecraft:bread", amount = 16 },
+    { type = "minecraft:bread", amount = 16 }
 ]
 
-[kits.tools]
-permission = "utilitystone.kit.tools"
-cooldown = "7d"
-items = [
-    { type = "minecraft:diamond_pickaxe", amount = 1, name = "&bStone Cutter", enchants = { efficiency = 3, unbreaking = 2 } },
-]
+[discord]
+enabled = true               # Enable Discord relay module
+relayChat = true             # Relay player chat
+relayDeaths = true           # Relay death messages
+relayJoinLeave = true        # Relay join/leave events
+relayServerState = true      # Relay start/stop notices
+sendIntervalSeconds = 1.5    # Queue post interval (batched)
+inboundPollTicks = 10        # Inbound poll interval
+maxInboundLength = 256       # Max inbound message length
+chatFormat = "**{name}**: {message}"
+eventFormat = "_{message}_"
+inboundFormat = "&9[Discord] &b{name}&7: &f{message}"
 ```
 
-| Key | Required | Meaning |
-| --- | --- | --- |
-| `items` | yes | List of items. `type` is required, `amount`, `name`, `lore` and `enchants` are optional. |
-| `cooldown` | no | Wait between claims, in the usual duration format. Leave it out for no cooldown. |
-| `permission` | no | Node needed to claim the kit. Leave it out and everybody may claim it. |
+---
 
-If a kit sets a `permission` that UtilityStone does not ship, nobody holds it until you grant it. That is
-deliberate. Adding your own nodes to the plugin is not possible at runtime with the current Endstone API, so
-point `permission` at a node your permission manager already knows about, or leave it off entirely.
+## Development & Testing
 
-Anything that does not fit in a player's inventory is dropped at their feet rather than lost.
-
-## Discord relay
-
-UtilityStone can mirror your in game chat into a Discord channel and carry Discord messages back into the game.
-It is an optional module. If you never set it up, nothing changes: the plugin loads, every command works, and
-the console prints a short note telling you the relay is available if you want it. No token and no channel id
-are required for the plugin to run.
-
-What gets relayed to Discord:
-
-- Chat messages from players
-- Death messages
-- Join and leave messages
-- Server start and shutdown
-
-What comes back into the game: any normal message posted in the linked channel, shown to every player as
-`[Discord] Name: message`. Messages from bots, webhooks and from UtilityStone's own bot are ignored, so the
-relay cannot talk to itself in a loop.
-
-### Setup guide
-
-**1. Make a Discord application**
-
-Go to [discord.com/developers/applications](https://discord.com/developers/applications) and press
-**New Application**. Give it a name such as `UtilityStone`.
-
-**2. Add a bot and copy the token**
-
-Open the **Bot** tab. Press **Reset Token**, then **Copy**. This is your `DISCORD_BOT_TOKEN`. Treat it like a
-password: anyone holding it controls the bot. If you ever paste it somewhere public, reset it immediately.
-
-**3. Turn on the message content intent**
-
-Still on the **Bot** tab, scroll to **Privileged Gateway Intents** and switch on **MESSAGE CONTENT INTENT**.
-Without it Discord sends your bot empty message bodies, so nothing reaches the game. This is the step people
-miss most often.
-
-**4. Invite the bot to your server**
-
-Open **OAuth2**, then **URL Generator**. Tick the `bot` scope, then tick these bot permissions:
-
-- View Channel
-- Send Messages
-- Read Message History
-
-Copy the generated URL, open it in a browser, and pick the Discord server you want.
-
-**5. Get the channel id**
-
-In Discord, open **User Settings**, then **Advanced**, and turn on **Developer Mode**. Right click the channel
-you want to use and choose **Copy Channel ID**. It is a long number such as `112233445566778899`. That is your
-`DISCORD_CHANNEL_ID`. It is the numeric id, not the channel name.
-
-**6. Create the .env file**
-
-Make a file called `.env` inside `plugins/utilitystone/` next to `config.toml`:
+### Project Layout
 
 ```
-DISCORD_BOT_TOKEN=your-bot-token-here
-DISCORD_CHANNEL_ID=112233445566778899
+utilitystone-clean/
+├── pyproject.toml
+├── LICENSE
+├── README.md
+├── CHANGELOG.md
+├── resource_pack/
+│   ├── manifest.json
+│   ├── textures/
+│   │   ├── icons/            # 12 pixel-art menu icons
+│   │   └── ui/               # Nine-slice cards, buttons, backgrounds
+│   └── ui/
+│       ├── utilitystone.json # Custom protocol renderer
+│       ├── server_form.json  # Factory marker router
+│       └── forms/community.json
+├── src/endstone_utilitystone/
+│   ├── __init__.py
+│   ├── plugin.py             # Main plugin class, commands & permissions
+│   ├── config.toml           # Default configuration
+│   ├── core/                 # Sessions, router, storage, settings, messages
+│   ├── services/             # Homes, warps, spawns, teleports, kits, afk, ranks, safeareas, daily rewards
+│   ├── commands/             # Command group implementations
+│   ├── listeners/            # Chat, connection, protection, safearea, menu_item
+│   ├── ui/                   # Player menu, admin menu, inspector, rank menu, config editor
+│   ├── integrations/         # USTBridge API & Discord relay (gateway, rest, bridge)
+│   └── util/                 # Durations, locations, text, player actions
+└── tests/                    # 700+ regression & unit test suite
 ```
 
-There is an `.env.example` in this repository you can copy. UtilityStone also reads a `.env` in the server root
-folder if there is not one in the plugin folder, and real environment variables of the same names win over
-either file, which is handy for hosting panels and Docker.
+### Running Tests & Code Validation
 
-**7. Start the relay**
+- **Run Pytest Suite**:
+  ```bash
+  python3 -m pytest tests/ -q
+  ```
+- **Bytecode Compilation Check**:
+  ```bash
+  python3 -m compileall -q src
+  ```
+- **Validate Resource Pack JSON**:
+  ```bash
+  find resource_pack -name '*.json' -print0 | xargs -0 -n1 jq empty
+  ```
+- **Git Diff & Whitespace Check**:
+  ```bash
+  git diff --check
+  ```
+- **Build Production Wheel**:
+  ```bash
+  python3 -m build --wheel
+  ```
 
-Restart the server, or run `/utilitystone reload`. You should see this in the console:
+---
 
-```
-[UtilityStone] Discord relay linked as UtilityStone to channel #minecraft.
-[UtilityStone] Discord gateway ready as UtilityStone.
-```
+## License
 
-Run `/utilitystone info` in game and the **Discord relay** line will read `connected`.
+UtilityStone Reloaded is released under the **MIT License**. See [LICENSE](LICENSE) for details.
 
-### If it does not connect
-
-| Console message | What to do |
-| --- | --- |
-| `The bot token was rejected` | The token is wrong or was reset. Copy it again from the Bot tab. |
-| `The bot cannot see channel ...` | Invite the bot to that Discord server and give it View Channel, Send Messages and Read Message History. |
-| `DISCORD_CHANNEL_ID should be the numeric channel id` | You used the channel name. Turn on Developer Mode and copy the id instead. |
-| Chat reaches Discord but Discord never reaches the game | The message content intent is off. Go back to step 3. |
-| `Discord relay needs the aiohttp package` | Your Python environment is missing aiohttp, which normally ships with Endstone. Reinstall Endstone. |
-
-### Discord settings
-
-These live in the `[discord]` section of `config.toml`. Secrets stay in `.env` and never go in `config.toml`.
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `enabled` | `true` | Master switch. Set to `false` to skip the module even when a token is present. |
-| `relayChat` | `true` | Send player chat to Discord. |
-| `relayDeaths` | `true` | Send death messages to Discord. |
-| `relayJoinLeave` | `true` | Send join and leave messages to Discord. |
-| `relayServerState` | `true` | Send server start and shutdown notices. |
-| `sendIntervalSeconds` | `1.5` | How often queued lines are posted, batched into one message. |
-| `inboundPollTicks` | `10` | How often Discord messages are handed to the game thread. Ten ticks is twice a second. |
-| `maxInboundLength` | `256` | Longer Discord messages are cut short before being shown in game. |
-| `chatFormat` | `**{name}**: {message}` | Layout of a relayed chat line. Discord markdown works here. |
-| `eventFormat` | `_{message}_` | Layout of deaths, joins, leaves and server notices. |
-| `inboundFormat` | `&9[Discord] &b{name}&7: &f{message}` | Layout of a Discord message shown in game. Supports `&` colour codes. |
-
-### How the relay stays out of the way
-
-The relay never runs on the server thread. Endstone ships a shared background event loop, and UtilityStone puts
-its Discord work there through `endstone.asyncio`. Game events append a line to a bounded queue, which is all
-the server thread ever does. The loop drains that queue on a timer and posts one batched message rather than
-one request per chat line, which keeps a busy server well inside Discord's rate limits. Messages coming the
-other way land in a second bounded queue and are read back on the server thread by a scheduled task, because
-the Endstone API must only be touched from that thread.
-
-Both queues have a fixed maximum size, so a Discord outage or a rate limit cannot grow memory without bound.
-Mentions are disabled on every relayed message, so nobody can ping `@everyone` from in game, and colour codes
-are stripped before a line leaves the server.
-
-## How it stays fast with fifty players
-
-These are the decisions that matter when a server is full.
-
-**No per tick or per movement event handlers.** The usual cause of lag in an essentials plugin is a
-`PlayerMoveEvent` listener, which fires many times per second for every player. With fifty players that is
-thousands of Python calls a second. UtilityStone registers no movement listener at all. Teleport warmups and
-AFK detection sample positions on a timer instead, twice a second and once every five seconds respectively.
-The cost does not change with how fast players are moving.
-
-**Cheap guard clauses on hot events.** The only genuinely hot event listened to is `ActorDamageEvent`, needed
-for god mode. Its first line checks whether the god mode set is empty and returns immediately if it is, which
-is the case on almost every server almost all of the time. No lookups, no allocation.
-
-**Disk writes never touch the server thread.** All persistent data lives in memory. Writes set a dirty flag,
-and a single background thread serialises and writes changed files on the save interval. Serialising holds a
-lock for the microseconds it takes and the file write happens outside it. Files are written to a temporary
-path and then moved into place, so a crash mid write cannot corrupt them. A file that is damaged anyway gets
-renamed out of the way at load and rebuilt rather than taking the plugin down.
-
-**Constant time lookups.** Sessions are held in dictionaries keyed by player UUID. Ignore lists are cached as
-sets while a player is online instead of scanning stored lists. Teleport requests are indexed by both sender
-and receiver, so accepting, denying and cleaning up on disconnect are all direct lookups.
-
-**Small objects.** `PlayerSession` and the teleport records use `__slots__`. With fifty sessions plus pending
-requests that saves a real amount of memory and makes attribute access faster.
-
-**Bounded work.** The teleport timer only walks the requests and warmups that actually exist, which is usually
-zero. Back history is capped per player. Playtime is written on a slow timer, not on every event.
-
-**Failures stay contained.** Every command runs inside the router's error handler, so a bad argument or an
-unexpected API result logs a traceback and tells the player something went wrong instead of bubbling up into
-the server tick.
-
-## Project layout
-
-```
-UtilityStone/
-  pyproject.toml
-  LICENSE
-  README.md
-  CHANGELOG.md
-  src/endstone_utilitystone/
-    __init__.py
-    plugin.py            plugin class, command table, permission table
-    config.toml          default config copied to the data folder on first run
-    core/
-      messages.py        prefixed and coloured replies
-      router.py          command name to handler dispatch with error trapping
-      sessions.py        per player in memory state
-      settings.py        typed, clamped view over config.toml
-      storage.py         json stores and the background writer
-    services/
-      afk.py             away detection and tagging
-      homes.py           home storage and limits
-      kits.py            kit definitions, cooldowns, item building
-      profiles.py        persistent player records, playtime, ignore lists
-      punishments.py     mutes, plus bans through the server ban list
-      spawns.py          spawn point
-      teleports.py       requests, warmups, cooldowns, back history
-      warps.py           warp storage and access
-    commands/
-      base.py            shared helpers for command groups
-      homes.py warps.py spawn.py teleports.py state.py
-      messaging.py moderation.py kits.py info.py
-    listeners/
-      chat.py            chat delivery, mutes, ignore filtering
-      connection.py      join and quit handling
-      protection.py      god mode and death tracking
-    integrations/
-      discord/
-        bridge.py        queues, lifecycle and thread handover
-        env.py           minimal .env reader
-        gateway.py       Discord websocket client
-        rest.py          Discord http client
-    util/
-      durations.py       duration parsing and formatting
-      locations.py       location encoding and distance
-      text.py            colour codes and small string helpers
-```
-
-Data files are written to `plugins/utilitystone/`: `profiles.json`, `homes.json`, `warps.json`, `spawn.json`,
-`punishments.json` and `kits.json`. The optional `.env` for the Discord relay goes in the same folder. Keep it
-out of version control, it holds your bot token.
-
-## Licence
-
-MIT. See [LICENSE](LICENSE). Copy it, change it, ship it in your own project. Just keep the copyright notice
-and credit Ozz as the original author.
+*Original UtilityStone created by Ozz.*
+*UtilityStone Reloaded maintained by Tigger02.*
