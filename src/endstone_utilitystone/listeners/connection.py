@@ -91,19 +91,38 @@ def giveMenuItem(plugin, player, force: bool = False) -> bool:
         return False
 
     inventory = player.inventory
+    valid_names = {displayName, "Server Menu", "UtilityStone Menu"}
+
+    # If not forced, check if player already has the exact menu item
     if not force:
-        for slot in list(range(36)) + [36, 37, 38, 39, 40]:
+        for slot in range(len(inventory)):
             try:
                 item = inventory.get_item(slot)
                 if item is None:
                     continue
                 if item.type != itemType:
-                    continue
+                    item_type_str = item.type.id if hasattr(item.type, "id") else str(item.type)
+                    if item_type_str != itemType and item_type_str != f"minecraft:{itemType}":
+                        continue
                 meta = item.item_meta
-                if meta is not None and meta.display_name == displayName:
+                if meta is not None and meta.has_display_name and meta.display_name in valid_names:
                     return True
             except Exception:
                 continue
+
+    # Remove any old written_book menu items so player is upgraded from book to compass
+    for slot in range(len(inventory)):
+        try:
+            item = inventory.get_item(slot)
+            if item is None:
+                continue
+            item_type_str = item.type.id if hasattr(item.type, "id") else str(item.type)
+            if "written_book" in item_type_str:
+                meta = item.item_meta
+                if meta is not None and meta.has_display_name and meta.display_name in valid_names:
+                    inventory.clear(slot)
+        except Exception:
+            continue
 
     from endstone.inventory import ItemStack
 
@@ -130,4 +149,3 @@ def giveMenuItem(plugin, player, force: bool = False) -> bool:
     except Exception as exc:
         plugin.logger.warning(f"Could not give menu item to {player.name}: {exc}")
         return False
-        return colorize(template.replace("{name}", player.name))

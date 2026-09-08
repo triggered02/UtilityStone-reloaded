@@ -37,8 +37,9 @@ class MenuItemListener:
         if item_type_str not in (target_type, target_type_full, target_type_short) and str(item.type) != target_type:
             return
 
+        valid_names = {settings.menuItemName, "Server Menu", "UtilityStone Menu"}
         meta = item.item_meta
-        if meta is None or not meta.has_display_name or meta.display_name != settings.menuItemName:
+        if meta is None or not meta.has_display_name or meta.display_name not in valid_names:
             return
 
         event.cancel()
