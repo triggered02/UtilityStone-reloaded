@@ -34,9 +34,32 @@ PERM_HOMES_VIEW = "utilitystone.admin.homes.view"
 PERM_HOMES_TELEPORT = "utilitystone.admin.homes.teleport"
 PERM_HOMES_DELETE = "utilitystone.admin.homes.delete"
 PERM_INVENTORY_VIEW = "utilitystone.admin.inventory.view"
+PERM_INVENTORY_EDIT = "utilitystone.admin.inventory.edit"
 PERM_ENDERCHEST_VIEW = "utilitystone.admin.enderchest.view"
+PERM_ENDERCHEST_EDIT = "utilitystone.admin.enderchest.edit"
+
+PERM_PLAYERS_INVENTORY_VIEW = "utilitystone.admin.players.inventory.view"
+PERM_PLAYERS_INVENTORY_EDIT = "utilitystone.admin.players.inventory.edit"
+PERM_PLAYERS_ENDERCHEST_VIEW = "utilitystone.admin.players.enderchest.view"
+PERM_PLAYERS_ENDERCHEST_EDIT = "utilitystone.admin.players.enderchest.edit"
 
 ITEMS_PER_PAGE = 7
+
+
+def _hasInventoryView(player) -> bool:
+    return hasPermission(player, PERM_INVENTORY_VIEW) or hasPermission(player, PERM_PLAYERS_INVENTORY_VIEW)
+
+
+def _hasInventoryEdit(player) -> bool:
+    return hasPermission(player, PERM_INVENTORY_EDIT) or hasPermission(player, PERM_PLAYERS_INVENTORY_EDIT)
+
+
+def _hasEnderChestView(player) -> bool:
+    return hasPermission(player, PERM_ENDERCHEST_VIEW) or hasPermission(player, PERM_PLAYERS_ENDERCHEST_VIEW)
+
+
+def _hasEnderChestEdit(player) -> bool:
+    return hasPermission(player, PERM_ENDERCHEST_EDIT) or hasPermission(player, PERM_PLAYERS_ENDERCHEST_EDIT)
 
 
 # ---------------------------------------------------------------------------
@@ -172,18 +195,32 @@ def _openPlayerInspector(plugin: UtilityStone, player, target) -> None:
             on_click=fm.wrapClick(player, lambda: _openAdminHomesForPlayer(plugin, player, target), f"homes:{target.name}"),
         )
 
-    if hasPermission(player, PERM_INVENTORY_VIEW):
+    if _hasInventoryView(player):
         addButton(
             form,
             "View Inventory",
             on_click=fm.wrapClick(player, lambda: _openInventoryView(plugin, player, target, 0), f"inv:{target.name}"),
         )
 
-    if hasPermission(player, PERM_ENDERCHEST_VIEW):
+    if _hasInventoryEdit(player):
+        addButton(
+            form,
+            "Edit Inventory",
+            on_click=fm.wrapClick(player, lambda: _openContainerEditor(plugin, player, target, is_ender_chest=False, page=0), f"edit_inv:{target.name}"),
+        )
+
+    if _hasEnderChestView(player):
         addButton(
             form,
             "View Ender Chest",
             on_click=fm.wrapClick(player, lambda: _openEnderChestView(plugin, player, target, 0), f"ender:{target.name}"),
+        )
+
+    if _hasEnderChestEdit(player):
+        addButton(
+            form,
+            "Edit Ender Chest",
+            on_click=fm.wrapClick(player, lambda: _openContainerEditor(plugin, player, target, is_ender_chest=True, page=0), f"edit_ender:{target.name}"),
         )
 
     # ── Player Actions ──
@@ -366,7 +403,7 @@ def _confirmDeleteAdminHome(plugin: UtilityStone, player, target, homeName: str)
 def _openInventoryView(plugin: UtilityStone, player, target, page: int = 0) -> None:
     fm = plugin.gui
 
-    if not _requirePermission(plugin, player, PERM_INVENTORY_VIEW, "view inventories"):
+    if not (_hasInventoryView(player) or _requirePermission(plugin, player, PERM_INVENTORY_VIEW, "view inventories")):
         return
 
     _audit(plugin, player, "viewed inventory of", target.name)
@@ -400,6 +437,15 @@ def _openInventoryView(plugin: UtilityStone, player, target, page: int = 0) -> N
             else:
                 addLabel(form, f"Slot {slot + 1}: {itemName}")
 
+    addDivider(form)
+    if _hasInventoryEdit(player):
+        targetCopyEdit = target
+        addButton(
+            form,
+            "Edit Inventory",
+            on_click=fm.wrapClick(player, lambda p=player, t=targetCopyEdit, pg=page: _openContainerEditor(plugin, p, t, is_ender_chest=False, page=pg), f"inv_edit:{target.name}:{page}"),
+        )
+
     if page > 0:
         targetCopy = target
         addButton(
@@ -426,7 +472,7 @@ def _openInventoryView(plugin: UtilityStone, player, target, page: int = 0) -> N
 def _openEnderChestView(plugin: UtilityStone, player, target, page: int = 0) -> None:
     fm = plugin.gui
 
-    if not _requirePermission(plugin, player, PERM_ENDERCHEST_VIEW, "view ender chests"):
+    if not (_hasEnderChestView(player) or _requirePermission(plugin, player, PERM_ENDERCHEST_VIEW, "view ender chests")):
         return
 
     _audit(plugin, player, "viewed Ender Chest of", target.name)
@@ -460,6 +506,15 @@ def _openEnderChestView(plugin: UtilityStone, player, target, page: int = 0) -> 
             else:
                 addLabel(form, f"Slot {slot + 1}: {itemName}")
 
+    addDivider(form)
+    if _hasEnderChestEdit(player):
+        targetCopyEdit = target
+        addButton(
+            form,
+            "Edit Ender Chest",
+            on_click=fm.wrapClick(player, lambda p=player, t=targetCopyEdit, pg=page: _openContainerEditor(plugin, p, t, is_ender_chest=True, page=pg), f"ender_edit:{target.name}:{page}"),
+        )
+
     if page > 0:
         targetCopy = target
         addButton(
@@ -478,6 +533,268 @@ def _openEnderChestView(plugin: UtilityStone, player, target, page: int = 0) -> 
 
     addButton(form, "Back", on_click=fm.wrapClick(player, lambda: _openPlayerInspector(plugin, player, target), "back"))
     fm.sendForm(player, form, label=f"enderchest:{target.name}:{page}")
+
+
+# ---------------------------------------------------------------------------
+# Container Editor (Inventory & Ender Chest Editing)
+# ---------------------------------------------------------------------------
+def _openContainerEditor(plugin: UtilityStone, player, target, is_ender_chest: bool = False, page: int = 0, local_edits: dict | None = None) -> None:
+    fm = plugin.gui
+
+    perm_check = _hasEnderChestEdit(player) if is_ender_chest else _hasInventoryEdit(player)
+    label_perm = "edit ender chests" if is_ender_chest else "edit inventories"
+    if not (perm_check or _requirePermission(plugin, player, PERM_ENDERCHEST_EDIT if is_ender_chest else PERM_INVENTORY_EDIT, label_perm)):
+        return
+
+    safe_target = fm.safePlayer(target)
+    if safe_target is None:
+        plugin.messages.failure(player, f"Player {target.name} is no longer online.")
+        return
+
+    if local_edits is None:
+        local_edits = {}
+
+    container = safe_target.ender_chest if is_ender_chest else safe_target.inventory
+    invSize = len(container)
+    totalPages = max(1, (invSize + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
+    page = max(0, min(page, totalPages - 1))
+
+    start = page * ITEMS_PER_PAGE
+    end = min(start + ITEMS_PER_PAGE, invSize)
+
+    container_name = "Ender Chest" if is_ender_chest else "Inventory"
+    edits_count = len(local_edits)
+    status_str = f" ({edits_count} unsaved edits)" if edits_count > 0 else ""
+
+    form = buildActionMenu(
+        f"Edit {container_name}: {safe_target.name}",
+        f"Page {page + 1}/{totalPages}  (slots {start + 1}-{end} of {invSize}){status_str}",
+    )
+
+    for slot in range(start, end):
+        if slot in local_edits:
+            type_str, amount, data_val = local_edits[slot]
+            if amount <= 0 or type_str.lower() in ("", "air", "minecraft:air", "none", "empty"):
+                display = f"Slot {slot + 1}: Empty [Edited]"
+            else:
+                display = f"Slot {slot + 1}: {type_str} x{amount} [Edited]"
+        else:
+            try:
+                item = container[slot]
+            except Exception:
+                item = None
+
+            if item is None:
+                display = f"Slot {slot + 1}: Empty"
+            else:
+                itemName = _getItemDisplayName(item)
+                amount = item.amount
+                if amount > 1:
+                    display = f"Slot {slot + 1}: {itemName} x{amount}"
+                else:
+                    display = f"Slot {slot + 1}: {itemName}"
+
+        slot_idx = slot
+        edits_copy = dict(local_edits)
+        targetCopy = safe_target
+        addButton(
+            form,
+            display,
+            on_click=fm.wrapClick(
+                player,
+                lambda p=player, t=targetCopy, s=slot_idx, pg=page, ed=edits_copy: _openSlotEditor(plugin, p, t, is_ender_chest, s, pg, ed),
+                f"edit_slot:{safe_target.name}:{slot}",
+            ),
+        )
+
+    addDivider(form)
+    if edits_count > 0:
+        edits_to_save = dict(local_edits)
+        targetCopy3 = safe_target
+        addButton(
+            form,
+            f"Save All Changes ({edits_count})",
+            on_click=fm.wrapClick(
+                player,
+                lambda p=player, t=targetCopy3, ed=edits_to_save: _saveContainerEdits(plugin, p, t, is_ender_chest, ed),
+                f"save_edits:{safe_target.name}",
+            ),
+        )
+
+    if page > 0:
+        targetCopy1 = safe_target
+        edits_nav1 = dict(local_edits)
+        addButton(
+            form,
+            "Previous Page",
+            on_click=fm.wrapClick(
+                player,
+                lambda p=player, t=targetCopy1, pg=page - 1, ed=edits_nav1: _openContainerEditor(plugin, p, t, is_ender_chest, pg, ed),
+                f"edit_prev:{safe_target.name}:{page}",
+            ),
+        )
+
+    if page < totalPages - 1:
+        targetCopy2 = safe_target
+        edits_nav2 = dict(local_edits)
+        addButton(
+            form,
+            "Next Page",
+            on_click=fm.wrapClick(
+                player,
+                lambda p=player, t=targetCopy2, pg=page + 1, ed=edits_nav2: _openContainerEditor(plugin, p, t, is_ender_chest, pg, ed),
+                f"edit_next:{safe_target.name}:{page}",
+            ),
+        )
+
+    addButton(form, "Cancel", on_click=fm.wrapClick(player, lambda: _openPlayerInspector(plugin, player, safe_target), "cancel"))
+    fm.sendForm(player, form, label=f"edit_container_menu:{safe_target.name}:{page}")
+
+
+def _openSlotEditor(plugin: UtilityStone, player, target, is_ender_chest: bool, slot: int, page: int, local_edits: dict) -> None:
+    from endstone.form import TextInput
+    from endstone_utilitystone.ui.components import buildModal
+
+    fm = plugin.gui
+    perm_check = _hasEnderChestEdit(player) if is_ender_chest else _hasInventoryEdit(player)
+    if not (perm_check or _requirePermission(plugin, player, PERM_ENDERCHEST_EDIT if is_ender_chest else PERM_INVENTORY_EDIT, "edit slots")):
+        return
+
+    if slot in local_edits:
+        cur_type, cur_amount, cur_data = local_edits[slot]
+    else:
+        container = target.ender_chest if is_ender_chest else target.inventory
+        try:
+            item = container[slot] if slot < len(container) else None
+        except Exception:
+            item = None
+
+        if item is None:
+            cur_type, cur_amount, cur_data = "air", 0, 0
+        else:
+            try:
+                cur_type = item.type.id if hasattr(item.type, "id") else str(item.type)
+            except Exception:
+                cur_type = "unknown"
+            cur_amount = item.amount
+            cur_data = getattr(item, "data", 0)
+
+    c1 = TextInput(label="Item Identifier (e.g. minecraft:diamond, or air)", placeholder="minecraft:air", default_value=str(cur_type))
+    c2 = TextInput(label="Amount (0 to 64)", placeholder="0", default_value=str(cur_amount))
+    c3 = TextInput(label="Data / Aux Value (integer)", placeholder="0", default_value=str(cur_data))
+
+    container_name = "Ender Chest" if is_ender_chest else "Inventory"
+
+    def _handleSlotSubmit(p, data):
+        parsed = fm.parseModalData(data)
+        if not parsed or len(parsed) < 2:
+            _openContainerEditor(plugin, p, target, is_ender_chest, page, local_edits)
+            return
+
+        raw_type = str(parsed[0]).strip()
+        raw_amount = str(parsed[1]).strip()
+        raw_data = str(parsed[2]).strip() if len(parsed) > 2 else "0"
+
+        try:
+            amount_val = int(raw_amount)
+        except ValueError:
+            plugin.messages.failure(p, "Amount must be an integer.")
+            _openContainerEditor(plugin, p, target, is_ender_chest, page, local_edits)
+            return
+
+        try:
+            data_val = int(raw_data)
+        except ValueError:
+            plugin.messages.failure(p, "Data must be an integer.")
+            _openContainerEditor(plugin, p, target, is_ender_chest, page, local_edits)
+            return
+
+        if amount_val < 0:
+            plugin.messages.failure(p, "Amount cannot be negative.")
+            _openContainerEditor(plugin, p, target, is_ender_chest, page, local_edits)
+            return
+
+        if raw_type.lower() in ("", "air", "minecraft:air", "none", "empty") or amount_val == 0:
+            local_edits[slot] = ("minecraft:air", 0, 0)
+        else:
+            norm_type = raw_type if ":" in raw_type else f"minecraft:{raw_type}"
+            local_edits[slot] = (norm_type, amount_val, data_val)
+
+        _openContainerEditor(plugin, p, target, is_ender_chest, page, local_edits)
+
+    def _handleSlotClose(p):
+        _openContainerEditor(plugin, p, target, is_ender_chest, page, local_edits)
+
+    form = buildModal(
+        title=f"Edit Slot {slot + 1} ({container_name})",
+        controls=[c1, c2, c3],
+        onSubmit=fm.wrapSubmit(player, _handleSlotSubmit, f"edit_slot_modal:{slot}"),
+        onClose=fm.wrapClose(player, f"edit_slot_modal_close:{slot}"),
+        submitText="Set Slot",
+    )
+    fm.sendForm(player, form, label=f"slot_editor:{target.name}:{slot}")
+
+
+def _saveContainerEdits(plugin: UtilityStone, player, target, is_ender_chest: bool, local_edits: dict) -> None:
+    fm = plugin.gui
+    perm_check = _hasEnderChestEdit(player) if is_ender_chest else _hasInventoryEdit(player)
+    if not perm_check:
+        plugin.messages.failure(player, "You do not have permission to edit inventories.")
+        return
+
+    safe_t = fm.safePlayer(target)
+    if safe_t is None:
+        plugin.messages.failure(player, f"Player {target.name} is no longer online.")
+        return
+
+    container = safe_t.ender_chest if is_ender_chest else safe_t.inventory
+    container_name = "Ender Chest" if is_ender_chest else "inventory"
+
+    if not local_edits:
+        plugin.messages.info(player, "No changes to save.")
+        _openPlayerInspector(plugin, player, safe_t)
+        return
+
+    validated_items: dict[int, Any] = {}
+
+    for slot, (type_str, amount, data_val) in local_edits.items():
+        if slot < 0 or slot >= len(container):
+            plugin.messages.failure(player, f"Slot {slot + 1} is out of bounds for {container_name}.")
+            return
+
+        if amount <= 0 or type_str.lower() in ("", "air", "minecraft:air", "none", "empty"):
+            validated_items[slot] = None
+        else:
+            try:
+                from endstone.inventory import ItemStack
+                try:
+                    item = ItemStack(type_str, amount, data_val)
+                except RuntimeError as rerr:
+                    if "endstone runtime" in str(rerr).lower():
+                        import types
+                        item = types.SimpleNamespace(type=type_str, amount=amount, data=data_val)
+                    else:
+                        raise rerr
+                if item is None:
+                    plugin.messages.failure(player, f"Could not create item '{type_str}' for slot {slot + 1}.")
+                    return
+                validated_items[slot] = item
+            except Exception as exc:
+                plugin.messages.failure(player, f"Invalid item '{type_str}' for slot {slot + 1}: {exc}")
+                return
+
+    changed_count = len(validated_items)
+
+    for slot, item in validated_items.items():
+        try:
+            container[slot] = item
+        except Exception as exc:
+            plugin.messages.failure(player, f"Failed to update slot {slot + 1}: {exc}")
+            return
+
+    _audit(plugin, player, f"edited {changed_count} {container_name} slots of", safe_t.name)
+    plugin.messages.success(player, f"Saved {changed_count} {container_name} slot changes for {safe_t.name}.")
+    _openPlayerInspector(plugin, player, safe_t)
 
 
 # ---------------------------------------------------------------------------

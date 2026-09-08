@@ -150,33 +150,13 @@
             ],
             "$a": "",
 
-                "property_bag": {
-                  "#§a§№": [
-                    0,
-                    1,
-                    0,
-                    1
-                  ],
-                  "#§b§№": [
-                    0,
-                    0,
-                    1,
-                    1
-                  ],
-                  "#§d§№": [
-                    1,
-                    0,
-                    1,
-                    1
-                  ]
-                },
                 "bindings": [
                   {
                     "binding_name": "#title_text"
                   },
                   {
                     "binding_type": "view",
-                    "source_property_name": "('#' + '%.8s' * #title_text)",
+                    "source_property_name": "('#' + '' * #title_text)",
                     "target_property_name": "#color"
                   },
                   {
@@ -307,28 +287,13 @@
               430,
               225
             ],
-            "property_bag": {
-                  "#§a§№": [
-                    0,
-                    1,
-                    0,
-                    1
-                  ],
-                  "#§b§№": [0, 0, 1, 0.75],
-                  "#§d§№": [
-                    1,
-                    0,
-                    1,
-                    1
-                  ]
-                },
-                "bindings": [
+            "bindings": [
                   {
                     "binding_name": "#title_text"
                   },
                   {
                     "binding_type": "view",
-                    "source_property_name": "('#' + '%.8s' * #title_text)",
+                    "source_property_name": "('#' + '' * #title_text)",
                     "target_property_name": "#color"
                   },
                   {

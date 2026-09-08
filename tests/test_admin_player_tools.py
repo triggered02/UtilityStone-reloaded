@@ -14,11 +14,19 @@ Tests cover:
 from __future__ import annotations
 
 import pathlib
+import sys
+
+_WORKTREE_SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
+if str(_WORKTREE_SRC) not in sys.path:
+    sys.path.insert(0, str(_WORKTREE_SRC))
+for _name in list(sys.modules):
+    if _name == "endstone_utilitystone" or _name.startswith("endstone_utilitystone."):
+        del sys.modules[_name]
 
 # ---------------------------------------------------------------------------
 # Source file paths
 # ---------------------------------------------------------------------------
-_SRC = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone"
+_SRC = _WORKTREE_SRC / "endstone_utilitystone"
 _PLAYER_TOOLS_SRC = (_SRC / "ui" / "admin_player_tools.py").read_text()
 _ADMIN_MENU_SRC = (_SRC / "ui" / "admin_menu.py").read_text()
 _PLUGIN_SRC = (_SRC / "plugin.py").read_text()
@@ -238,6 +246,14 @@ class TestPermissions:
     def test_perm_enderchest_view_exists(self):
         assert "utilitystone.admin.enderchest.view" in _PLUGIN_SRC
 
+    def test_perm_inventory_edit_exists(self):
+        assert "utilitystone.admin.inventory.edit" in _PLUGIN_SRC
+        assert "utilitystone.admin.players.inventory.edit" in _PLUGIN_SRC
+
+    def test_perm_enderchest_edit_exists(self):
+        assert "utilitystone.admin.enderchest.edit" in _PLUGIN_SRC
+        assert "utilitystone.admin.players.enderchest.edit" in _PLUGIN_SRC
+
     def test_permissions_default_to_op(self):
         """All admin permissions should default to op."""
         for perm in [
@@ -246,7 +262,13 @@ class TestPermissions:
             "utilitystone.admin.homes.teleport",
             "utilitystone.admin.homes.delete",
             "utilitystone.admin.inventory.view",
+            "utilitystone.admin.inventory.edit",
+            "utilitystone.admin.players.inventory.view",
+            "utilitystone.admin.players.inventory.edit",
             "utilitystone.admin.enderchest.view",
+            "utilitystone.admin.enderchest.edit",
+            "utilitystone.admin.players.enderchest.view",
+            "utilitystone.admin.players.enderchest.edit",
         ]:
             assert f'"{perm}"' in _PLUGIN_SRC
             # Check it's in the permissions dict with "op" default
@@ -260,7 +282,9 @@ class TestPermissions:
         assert 'PERM_HOMES_TELEPORT = "utilitystone.admin.homes.teleport"' in _PLAYER_TOOLS_SRC
         assert 'PERM_HOMES_DELETE = "utilitystone.admin.homes.delete"' in _PLAYER_TOOLS_SRC
         assert 'PERM_INVENTORY_VIEW = "utilitystone.admin.inventory.view"' in _PLAYER_TOOLS_SRC
+        assert 'PERM_INVENTORY_EDIT = "utilitystone.admin.inventory.edit"' in _PLAYER_TOOLS_SRC
         assert 'PERM_ENDERCHEST_VIEW = "utilitystone.admin.enderchest.view"' in _PLAYER_TOOLS_SRC
+        assert 'PERM_ENDERCHEST_EDIT = "utilitystone.admin.enderchest.edit"' in _PLAYER_TOOLS_SRC
 
 
 # ===========================================================================
@@ -311,3 +335,140 @@ class TestItemDisplayHelper:
 
     def test_item_display_fallback_to_type(self):
         assert "str(item.type)" in _PLAYER_TOOLS_SRC
+
+
+# ===========================================================================
+# Unit / Logic Tests for Inventory & Ender Chest Editing
+# ===========================================================================
+import types
+from unittest import mock
+import unittest
+
+class FakeContainer:
+    def __init__(self, size=27):
+        self._slots = [None] * size
+
+    def __len__(self):
+        return len(self._slots)
+
+    def __getitem__(self, index):
+        return self._slots[index]
+
+    def __setitem__(self, index, item):
+        self._slots[index] = item
+
+
+class TestInventoryEditingExecution(unittest.TestCase):
+    def setUp(self):
+        from endstone_utilitystone.ui import admin_player_tools
+        self.apt = admin_player_tools
+
+        self.messages = []
+        self.failures = []
+        self.successes = []
+
+        self.admin = types.SimpleNamespace(
+            name="AdminPlayer",
+            unique_id="admin-1",
+            is_valid=True,
+            has_permission=lambda p: True,
+        )
+
+        self.target = types.SimpleNamespace(
+            name="TargetPlayer",
+            unique_id="target-1",
+            is_valid=True,
+            allow_flight=False,
+            game_mode=types.SimpleNamespace(name="survival"),
+            location=types.SimpleNamespace(
+                dimension=types.SimpleNamespace(name="overworld"),
+                block_x=10, block_y=64, block_z=20,
+            ),
+            health=20.0,
+            max_health=20.0,
+            ping=15,
+            inventory=FakeContainer(36),
+            ender_chest=FakeContainer(27),
+        )
+
+        self.plugin = types.SimpleNamespace(
+            logger=types.SimpleNamespace(info=lambda m: None),
+            messages=types.SimpleNamespace(
+                failure=lambda p, m: self.failures.append(m),
+                success=lambda p, m: self.successes.append(m),
+                info=lambda p, m: self.messages.append(m),
+            ),
+            sessions=types.SimpleNamespace(of=lambda p: None),
+            profiles=types.SimpleNamespace(profileFor=lambda p: None),
+            punishments=types.SimpleNamespace(muteFor=lambda id: None),
+            ranks=None,
+            godPlayers=set(),
+            gui=types.SimpleNamespace(
+                safePlayer=lambda p: p if getattr(p, "is_valid", False) else None,
+                sendForm=lambda p, f, label="": True,
+                wrapClick=lambda p, cb, l="": (lambda: cb()),
+                wrapSubmit=lambda p, cb, l="": (lambda player, data: cb(player, data)),
+                wrapClose=lambda p, l="": (lambda player: None),
+            ),
+        )
+
+    def test_save_valid_inventory_edits(self):
+        local_edits = {0: ("minecraft:diamond", 64, 0), 1: ("minecraft:apple", 10, 0)}
+        self.apt._saveContainerEdits(self.plugin, self.admin, self.target, is_ender_chest=False, local_edits=local_edits)
+
+        self.assertEqual(len(self.failures), 0)
+        self.assertEqual(len(self.successes), 1)
+        self.assertIsNotNone(self.target.inventory[0])
+        self.assertEqual(self.target.inventory[0].amount, 64)
+        self.assertIsNotNone(self.target.inventory[1])
+        self.assertEqual(self.target.inventory[1].amount, 10)
+
+    def test_save_valid_enderchest_edits(self):
+        local_edits = {5: ("minecraft:emerald", 32, 0)}
+        self.apt._saveContainerEdits(self.plugin, self.admin, self.target, is_ender_chest=True, local_edits=local_edits)
+
+        self.assertEqual(len(self.failures), 0)
+        self.assertEqual(len(self.successes), 1)
+        self.assertIsNotNone(self.target.ender_chest[5])
+        self.assertEqual(self.target.ender_chest[5].amount, 32)
+
+    def test_unauthorized_save_blocked(self):
+        unauth_admin = types.SimpleNamespace(
+            name="UnauthAdmin",
+            unique_id="admin-2",
+            is_valid=True,
+            has_permission=lambda p: False,
+        )
+        local_edits = {0: ("minecraft:diamond", 64, 0)}
+        self.apt._saveContainerEdits(self.plugin, unauth_admin, self.target, is_ender_chest=False, local_edits=local_edits)
+
+        self.assertEqual(len(self.failures), 1)
+        self.assertIn("permission", self.failures[0].lower())
+        self.assertIsNone(self.target.inventory[0])
+
+    def test_invalid_item_identifier_rejected_atomically(self):
+        local_edits = {
+            0: ("minecraft:diamond", 64, 0),
+            1: ("invalid_nonexistent_item_type_xyz", 10, 0),
+        }
+        with mock.patch("endstone.inventory.ItemStack", side_effect=lambda t, a, d: None if "invalid" in t else types.SimpleNamespace(type=t, amount=a, data=d)):
+            self.apt._saveContainerEdits(self.plugin, self.admin, self.target, is_ender_chest=False, local_edits=local_edits)
+
+        self.assertEqual(len(self.failures), 1)
+        self.assertIn("Could not create item", self.failures[0])
+        # Verify atomic failure: slot 0 must NOT be updated
+        self.assertIsNone(self.target.inventory[0])
+
+    def test_cancel_causes_no_mutation(self):
+        # Opening inspector or editor does not mutate container
+        initial_slot0 = self.target.inventory[0]
+        self.apt._openContainerEditor(self.plugin, self.admin, self.target, is_ender_chest=False, page=0)
+        self.assertEqual(self.target.inventory[0], initial_slot0)
+
+    def test_disappearing_target_handled_cleanly(self):
+        self.target.is_valid = False
+        local_edits = {0: ("minecraft:diamond", 64, 0)}
+        self.apt._saveContainerEdits(self.plugin, self.admin, self.target, is_ender_chest=False, local_edits=local_edits)
+
+        self.assertEqual(len(self.failures), 1)
+        self.assertIn("no longer online", self.failures[0])

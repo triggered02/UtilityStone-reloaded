@@ -463,11 +463,6 @@
         "100%"
     ],
     "layer": 1,
-    "property_bag": {
-        "#§a§№": "c_button",
-        "#§b§№": "c_button_blue",
-        "#§d§№": "c_button_purple"
-    },
     "bindings": [
         {
             "binding_type": "collection_details",
@@ -478,7 +473,7 @@
         },
         {
             "binding_type": "view",
-            "source_property_name": "('textures/ui/default_' + ('#' + ('%.8s' * #title_text)))",
+            "source_property_name": "('textures/ui/default_' + ('#' + ('' * #title_text)))",
             "target_property_name": "#texture"
         }
     ],
@@ -496,11 +491,6 @@
         "100%"
     ],
     "layer": 1,
-    "property_bag": {
-        "#§a§№": "c_button",
-        "#§b§№": "c_button_blue",
-        "#§d§№": "c_button_purple"
-    },
     "bindings": [
         {
             "binding_type": "collection_details",
@@ -511,7 +501,7 @@
         },
         {
             "binding_type": "view",
-            "source_property_name": "('textures/ui/hover_' + ('#' + ('%.8s' * #title_text)))",
+            "source_property_name": "('textures/ui/hover_' + ('#' + ('' * #title_text)))",
             "target_property_name": "#texture"
         }
     ],
@@ -529,11 +519,6 @@
         "100%"
     ],
     "layer": 1,
-    "property_bag": {
-        "#§a§№": "c_button",
-        "#§b§№": "c_button_blue",
-        "#§d§№": "c_button_purple"
-    },
     "bindings": [
         {
             "binding_type": "collection_details",
@@ -544,7 +529,7 @@
         },
         {
             "binding_type": "view",
-            "source_property_name": "('textures/ui/pressed_' + ('#' + ('%.8s' * #title_text)))",
+            "source_property_name": "('textures/ui/pressed_' + ('#' + ('' * #title_text)))",
             "target_property_name": "#texture"
         }
     ],

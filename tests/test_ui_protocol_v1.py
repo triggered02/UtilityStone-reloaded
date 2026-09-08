@@ -20,6 +20,7 @@ authoritative.
 import json
 import pathlib
 import sys
+import unittest
 
 
 # CRITICAL: The installed `endstone-utilitystone` pip package may be
@@ -313,7 +314,7 @@ class TestServerFormUtilitystoneFactory:
         raise AssertionError("utilitystone panel not found in server_form.json")
 
 
-class TestUtilitystoneNamespaceFile:
+class TestUtilitystoneNamespaceFile(unittest.TestCase):
     """The resource pack must include resource_pack/ui/utilitystone.json with the renderer."""
 
     def test_utilitystone_json_exists(self):
@@ -340,8 +341,14 @@ class TestUtilitystoneNamespaceFile:
         assert "player_menu_form" in data
         assert "ust_button" in data
 
-    def test_ust_button_uses_light_text_button_with_custom_textures(self):
-        """The ust_button must use form_button@common_buttons.light_text_button with custom texture variables."""
+    def test_ust_button_uses_explicit_default_hover_pressed(self):
+        """The ust_button must wrap a button with default/hover/pressed child images.
+
+        This replaces the prior ``form_button@common_buttons.light_text_button``
+        inheritance chain (which produced gray/green buttons) with a
+        `main@common.button` that embeds the state images and the icon as its
+        child controls, following the working Obsidian Essentials pattern.
+        """
         rp_root = pathlib.Path(__file__).resolve().parent.parent / "resource_pack"
         upath = rp_root / "ui" / "utilitystone.json"
         if not upath.exists():
@@ -350,18 +357,64 @@ class TestUtilitystoneNamespaceFile:
             data = json.load(f)
         ust_button = data.get("ust_button", {})
         controls = ust_button.get("controls", [])
-        # Find the light_text_button child
-        found = False
+
+        # The ust_button is a `panel` containing a single `main@common.button`.
+        main = None
         for ctrl in controls:
-            for key in ctrl:
-                if key == "form_button@common_buttons.light_text_button":
-                    btn = ctrl[key]
-                    assert "$default_button_texture" in btn
-                    assert "$hover_button_texture" in btn
-                    assert "$pressed_button_texture" in btn
-                    assert btn["$default_button_texture"] == "textures/ui/default_c_button"
-                    found = True
-        assert found, "ust_button must contain form_button@common_buttons.light_text_button"
+            for key, val in ctrl.items():
+                if key == "main@common.button":
+                    main = val
+                    break
+            if main is not None:
+                break
+        assert main is not None, "ust_button must contain a 'main@common.button' child"
+        assert main.get("$pressed_button_name") == "button.form_button_click"
+
+        # The control must define default/hover/pressed named children
+        # with our Obsidian c_button textures.
+        child_names = set()
+        for child in main.get("controls", []):
+            for name in child:
+                child_names.add(name)
+        assert "default" in child_names, "button must have a 'default' child image"
+        assert "hover" in child_names, "button must have a 'hover' child image"
+        assert "pressed" in child_names, "button must have a 'pressed' child image"
+
+        # Verify the textures are the Obsidian c_button family.
+        for child in main.get("controls", []):
+            for name, val in child.items():
+                if name == "default":
+                    assert val.get("texture") == "textures/ui/default_c_button", (
+                        "default state must use Obsidian default_c_button.png"
+                    )
+                elif name == "hover":
+                    assert val.get("texture") == "textures/ui/hover_c_button", (
+                        "hover state must use Obsidian hover_c_button.png"
+                    )
+                elif name == "pressed":
+                    assert val.get("texture") == "textures/ui/pressed_c_button", (
+                        "pressed state must use Obsidian pressed_c_button.png"
+                    )
+
+        # Each state image must embed the icon+chevron content as a child.
+        for child in main.get("controls", []):
+            for name, val in child.items():
+                if name in ("default", "hover", "pressed"):
+                    content = val.get("controls", [])
+                    content_names = [k for c in content for k in c]
+                    assert any(
+                        cn.startswith("content@") for cn in content_names
+                    ), f"{name} state must embed content@utilitystone.ust_button_content"
+
+    def test_ust_button_does_not_use_property_bag(self):
+        """Phase5 brief: no property_bag / title-slicing mechanism in the UST renderer."""
+        rp_root = pathlib.Path(__file__).resolve().parent.parent / "resource_pack"
+        upath = rp_root / "ui" / "utilitystone.json"
+        if not upath.exists():
+            return
+        text = upath.read_text()
+        self.assertNotIn("property_bag", text)
+        self.assertNotIn("%.8s", text)
 
     def test_ust_button_binds_form_button_text_from_collection(self):
         """The button text must be read from #form_button_text in the form_buttons collection."""
@@ -372,12 +425,28 @@ class TestUtilitystoneNamespaceFile:
         with upath.open() as f:
             data = json.load(f)
         ust_button = data.get("ust_button", {})
-        for ctrl in ust_button.get("controls", []):
-            if "form_button@common_buttons.light_text_button" in ctrl:
-                btn = ctrl["form_button@common_buttons.light_text_button"]
-                assert btn.get("$button_text") == "#form_button_text"
-                assert btn.get("$button_text_binding_type") == "collection"
-                assert btn.get("$button_text_grid_collection_name") == "form_buttons"
+        # Walk the controls to find the b_text label inside form_button
+        def _walk(node):
+            if isinstance(node, dict):
+                if "b_text" in node and isinstance(node["b_text"], dict):
+                    bt = node["b_text"]
+                    yield bt
+                for v in node.values():
+                    yield from _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    yield from _walk(v)
+        b_texts = list(_walk(ust_button))
+        self.assertTrue(len(b_texts) >= 1, "ust_button must contain a b_text label")
+        bt = b_texts[0]
+        self.assertEqual(bt.get("text"), "#form_button_text")
+        bindings = bt.get("bindings", [])
+        self.assertTrue(any(
+            b.get("binding_name") == "#form_button_text"
+            and b.get("binding_type") == "collection"
+            and b.get("binding_collection_name") == "form_buttons"
+            for b in bindings
+        ))
 
     def test_ust_button_emits_pressed_button_event(self):
         """The button must emit 'button.form_button_click' so Endstone can dispatch the click."""
@@ -388,26 +457,90 @@ class TestUtilitystoneNamespaceFile:
         with upath.open() as f:
             data = json.load(f)
         ust_button = data.get("ust_button", {})
-        for ctrl in ust_button.get("controls", []):
-            if "form_button@common_buttons.light_text_button" in ctrl:
-                btn = ctrl["form_button@common_buttons.light_text_button"]
-                assert btn.get("$pressed_button_name") == "button.form_button_click", (
-                    "Button must emit 'button.form_button_click' for Endstone callback dispatch"
-                )
+        # Find any control with the click event name
+        found = False
+        def _walk(node):
+            nonlocal found
+            if isinstance(node, dict):
+                if node.get("$pressed_button_name") == "button.form_button_click":
+                    found = True
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _walk(v)
+        _walk(ust_button)
+        assert found, "some control must emit button.form_button_click"
 
-    def test_player_menu_form_inner_factory_uses_ust_button(self):
-        """The button factory must instantiate utilitystone.ust_button from form_buttons."""
+    def test_buttons_stack_factory_uses_ust_button(self):
+        """The buttons_stack must instantiate utilitystone.ust_button from form_buttons."""
         rp_root = pathlib.Path(__file__).resolve().parent.parent / "resource_pack"
         upath = rp_root / "ui" / "utilitystone.json"
         if not upath.exists():
             return
         with upath.open() as f:
             data = json.load(f)
-        inner = data.get("player_menu_form_inner", {})
-        factory = inner.get("factory", {})
+        stack = data.get("buttons_stack", {})
+        factory = stack.get("factory", {})
         assert factory.get("control_name") == "utilitystone.ust_button"
         assert factory.get("name") == "buttons"
-        assert inner.get("collection_name") == "form_buttons"
+        assert stack.get("collection_name") == "form_buttons"
+
+    def test_ust_button_supports_optional_icon(self):
+        """The ust_button must surface optional #form_button_texture icons.
+
+        The icon lives inside `ust_button_content` (credit_button_content
+        equivalent), which is embedded as a child of each state image.
+        """
+        rp_root = pathlib.Path(__file__).resolve().parent.parent / "resource_pack"
+        upath = rp_root / "ui" / "utilitystone.json"
+        if not upath.exists():
+            return
+        with upath.open() as f:
+            data = json.load(f)
+        ust_button = data.get("ust_button", {})
+
+        # The icon is in `ust_button_content`, which is embedded by each state image.
+        content = data.get("ust_button_content", {})
+        self.assertIsNotNone(content, "ust_button_content must exist")
+        self.assertEqual(content.get("type"), "stack_panel")
+
+        # There must be an icon_panel with an icon_image that binds #form_button_texture.
+        icon_panel = None
+        for ctrl in content.get("controls", []):
+            for key, val in ctrl.items():
+                if key == "icon_panel":
+                    icon_panel = val
+                    break
+            if icon_panel:
+                break
+        self.assertIsNotNone(icon_panel, "ust_button_content must have an icon_panel")
+
+        icon_image = None
+        for child in icon_panel.get("controls", []):
+            for key, val in child.items():
+                if key == "icon_image":
+                    icon_image = val
+                    break
+            if icon_image:
+                break
+        self.assertIsNotNone(icon_image, "icon_panel must contain an icon_image")
+        bindings = icon_image.get("bindings", [])
+        self.assertTrue(any(
+            b.get("binding_name") == "#form_button_texture"
+            and b.get("binding_type") == "collection"
+            and b.get("binding_collection_name") == "form_buttons"
+            for b in bindings
+        ))
+
+        # icon_image must have a view binding that hides it when texture is
+        # empty/loading.
+        icon_image_bindings = icon_image.get("bindings", [])
+        self.assertTrue(any(
+            b.get("binding_type") == "view"
+            and b.get("target_property_name") == "#visible"
+            for b in icon_image_bindings
+        ))
 
     def test_player_menu_form_visibility_uses_utilitystone_marker(self):
         """The player_menu_form must be visible only when title contains the UST marker."""
@@ -458,8 +591,18 @@ class TestCallbackPreservation:
         import pathlib
         path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
         source = path.read_text()
-        # Player Info button is unconditional.
-        assert 'addButton(form, "Player Info"' in source
+        # Player Info button is unconditional. It lives in _openUtilities
+        # (the Utilities section opener). The addButton call may be on a
+        # single line OR split across lines, so check both forms.
+        single_line = 'addButton(form, "Player Info"'
+        multi_line_8 = (
+            'addButton(\n'
+            '        form,\n'
+            '        "Player Info"'
+        )
+        assert single_line in source or multi_line_8 in source, (
+            "Player Info button must be unconditional in _openUtilities"
+        )
 
 
 class TestFormManagerUnchanged:

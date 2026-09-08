@@ -59,9 +59,9 @@ quitMessage = ""
 welcomeMessage = ""
 
 [menuItem]
-enabled = false
+enabled = true
 itemType = "minecraft:written_book"
-name = "UtilityStone Menu"
+name = "Server Menu"
 lore = "Right-click to open the menu"
 slot = 8
 

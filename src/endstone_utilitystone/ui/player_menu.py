@@ -22,7 +22,7 @@ def openPlayerMenu(plugin: UtilityStone, player) -> bool:
     fm = plugin.gui
 
     def _build():
-        form = stylePlayerMenu("UtilityStone", "Your server toolkit")
+        form = stylePlayerMenu("Server Menu", "Server navigation & utilities")
 
         hasHomesAccess = hasPermission(player, "utilitystone.command.homes")
         hasWarpsAccess = hasPermission(player, "utilitystone.command.warp")
@@ -32,46 +32,199 @@ def openPlayerMenu(plugin: UtilityStone, player) -> bool:
         hasAfkAccess = hasPermission(player, "utilitystone.command.afk")
         hasDailyRewardAccess = hasPermission(player, "utilitystone.command.dailyreward")
 
-        hasAnyTravel = hasHomesAccess or hasWarpsAccess or hasSpawnAccess
+        hasAnyTravel = hasHomesAccess or hasSpawnAccess
 
         if hasAnyTravel:
-            addHeader(form, "Travel")
-            if hasHomesAccess:
-                addButton(form, "Homes", icon="textures/icons/Homes_Bed", on_click=fm.wrapClick(player, lambda: _openHomes(plugin, player), "homes"))
-            if hasWarpsAccess:
-                addButton(form, "Warps", on_click=fm.wrapClick(player, lambda: _openWarps(plugin, player), "warps"))
-            if hasSpawnAccess:
-                addButton(form, "Spawn", on_click=fm.wrapClick(player, lambda: player.perform_command("spawn"), "spawn"))
+            addButton(
+                form,
+                "Travel",
+                icon="textures/icons/LandClaims",
+                on_click=fm.wrapClick(
+                    player,
+                    lambda: _openTravel(plugin, player),
+                    "section:travel",
+                ),
+            )
 
-        if hasTpaAccess:
+        if hasWarpsAccess:
             if hasAnyTravel:
                 addDivider(form)
-            addHeader(form, "Teleport")
-            addButton(form, "TPA", on_click=fm.wrapClick(player, lambda: _openTeleport(plugin, player), "teleport"))
+            addButton(
+                form,
+                "Warps",
+                icon="textures/icons/TPA_Globe",
+                on_click=fm.wrapClick(
+                    player,
+                    lambda: _openWarps(plugin, player),
+                    "section:warps",
+                ),
+            )
 
-        hasAnyUtility = hasKitAccess or hasAfkAccess or hasDailyRewardAccess
+        hasAnyUtility = hasKitAccess or hasAfkAccess or hasDailyRewardAccess or hasTpaAccess or True
         if hasAnyUtility:
-            if hasAnyTravel or hasTpaAccess:
+            if hasAnyTravel or hasWarpsAccess:
                 addDivider(form)
-            addHeader(form, "Utilities")
-            if hasKitAccess:
-                addButton(form, "Kits", on_click=fm.wrapClick(player, lambda: _openKits(plugin, player), "kits"))
-            addButton(form, "Player Info", on_click=fm.wrapClick(player, lambda: _openPlayerInfo(plugin, player), "playerinfo"))
-            if hasAfkAccess:
-                addButton(form, "AFK", on_click=fm.wrapClick(player, lambda: player.perform_command("afk"), "afk"))
-            if hasDailyRewardAccess:
-                addButton(form, "Daily Reward", on_click=fm.wrapClick(player, lambda: _openDailyReward(plugin, player), "dailyreward"))
+            addButton(
+                form,
+                "Utilities",
+                icon="textures/icons/crate_icon",
+                on_click=fm.wrapClick(
+                    player,
+                    lambda: _openUtilities(plugin, player),
+                    "section:utilities",
+                ),
+            )
 
-        if not hasAnyTravel and not hasTpaAccess and not hasAnyUtility:
+        if not hasAnyTravel and not hasWarpsAccess and not hasAnyUtility:
             addLabel(form, "No features available.")
 
         if hasAdminGui(player):
             addDivider(form)
-            addButton(form, "Admin Panel", on_click=fm.wrapClick(player, lambda: fm.navigator.openAdminPanel(player), "admin"))
+            addButton(
+                form,
+                "Admin Panel",
+                icon="textures/icons/admin",
+                on_click=fm.wrapClick(
+                    player,
+                    lambda: fm.navigator.openAdminPanel(player),
+                    "admin",
+                ),
+            )
+
+        addDivider(form)
+        addButton(
+            form,
+            "Back",
+            icon="textures/icons/Arrow_Left_Curved",
+            on_click=fm.wrapClick(
+                player,
+                lambda: player.close_form(),
+                "player_menu:back",
+            ),
+        )
 
         return form
 
     return fm.sendForm(player, _build(), label="player_menu")
+
+
+# ---------------------------------------------------------------------------
+# Section submenu openers
+# ---------------------------------------------------------------------------
+# Each section opener builds a submenu that contains ONLY items from that
+# section. They reuse the existing _open* callbacks for the items themselves
+# (Homes, Warps, etc.) so the underlying business logic is not duplicated.
+# Only the section-level wrapper is new.
+
+def _openTravel(plugin: UtilityStone, player) -> None:
+    """Open the Travel submenu: only Homes / Warps / Spawn, gated by perms."""
+    fm = plugin.gui
+
+    hasHomesAccess = hasPermission(player, "utilitystone.command.homes")
+    hasWarpsAccess = hasPermission(player, "utilitystone.command.warp")
+    hasSpawnAccess = hasPermission(player, "utilitystone.command.spawn")
+
+    if not (hasHomesAccess or hasWarpsAccess or hasSpawnAccess):
+        return  # nothing to show; main menu shouldn't have offered this
+
+    form = buildActionMenu("Travel", "Homes, warps, and spawn")
+
+    if hasHomesAccess:
+        addButton(
+            form,
+            "Homes",
+            icon="textures/icons/Homes_Bed",
+            on_click=fm.wrapClick(player, lambda: _openHomes(plugin, player), "travel:homes"),
+        )
+    if hasWarpsAccess:
+        addButton(
+            form,
+            "Warps",
+            icon="textures/icons/LandClaims",
+            on_click=fm.wrapClick(player, lambda: _openWarps(plugin, player), "travel:warps"),
+        )
+    if hasSpawnAccess:
+        addButton(
+            form,
+            "Spawn",
+            icon="textures/icons/UpArrow",
+            on_click=fm.wrapClick(player, lambda: player.perform_command("spawn"), "travel:spawn"),
+        )
+
+    addDivider(form)
+    addButton(
+        form,
+        "Back",
+        icon="textures/icons/Arrow_Left_Curved",
+        on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "travel:back"),
+    )
+
+    fm.sendForm(player, form, label="travel")
+
+
+def _openUtilities(plugin: UtilityStone, player) -> None:
+    """Open the Utilities submenu: Kits / Daily Reward / Player Info / Homes / Teleport / AFK."""
+    fm = plugin.gui
+
+    hasKitAccess = hasPermission(player, "utilitystone.command.kit")
+    hasAfkAccess = hasPermission(player, "utilitystone.command.afk")
+    hasDailyRewardAccess = hasPermission(player, "utilitystone.command.dailyreward")
+    hasHomesAccess = hasPermission(player, "utilitystone.command.homes")
+    hasTpaAccess = hasPermission(player, "utilitystone.command.tpa")
+
+    form = buildActionMenu("Utilities", "Kits, info, and tools")
+
+    if hasKitAccess:
+        addButton(
+            form,
+            "Kits",
+            icon="textures/icons/crate_icon",
+            on_click=fm.wrapClick(player, lambda: _openKits(plugin, player), "utilities:kits"),
+        )
+    if hasDailyRewardAccess:
+        addButton(
+            form,
+            "Daily Reward",
+            icon="textures/icons/loot",
+            on_click=fm.wrapClick(player, lambda: _openDailyReward(plugin, player), "utilities:dailyreward"),
+        )
+    addButton(
+        form,
+        "Player Info",
+        icon="textures/icons/Stats_Icon",
+        on_click=fm.wrapClick(player, lambda: _openPlayerInfo(plugin, player), "utilities:playerinfo"),
+    )
+    if hasHomesAccess:
+        addButton(
+            form,
+            "Homes",
+            icon="textures/icons/Homes_Bed",
+            on_click=fm.wrapClick(player, lambda: _openHomes(plugin, player), "utilities:homes"),
+        )
+    if hasTpaAccess:
+        addButton(
+            form,
+            "Teleport",
+            icon="textures/icons/TPA_Globe",
+            on_click=fm.wrapClick(player, lambda: _openTeleport(plugin, player), "utilities:teleport"),
+        )
+    if hasAfkAccess:
+        addButton(
+            form,
+            "AFK",
+            icon="textures/icons/AFK",
+            on_click=fm.wrapClick(player, lambda: player.perform_command("afk"), "utilities:afk"),
+        )
+
+    addDivider(form)
+    addButton(
+        form,
+        "Back",
+        icon="textures/icons/Arrow_Left_Curved",
+        on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "utilities:back"),
+    )
+
+    fm.sendForm(player, form, label="utilities")
 
 
 def _openHomes(plugin: UtilityStone, player) -> None:
@@ -87,8 +240,18 @@ def _openHomes(plugin: UtilityStone, player) -> None:
     addLabel(form, f"Using {len(owned)} of {allowance} homes")
 
     if not owned:
-        addButton(form, "Create Home", on_click=fm.wrapClick(player, lambda: _createHome(plugin, player), "create_home"))
-        addButton(form, "Back", on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "back"))
+        addButton(
+            form,
+            "Create Home",
+            icon="textures/icons/Homes_Bed",
+            on_click=fm.wrapClick(player, lambda: _createHome(plugin, player), "create_home"),
+        )
+        addButton(
+            form,
+            "Back",
+            icon="textures/icons/Arrow_Left_Curved",
+            on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "back"),
+        )
         fm.sendForm(player, form, label="homes_list")
         return
 
@@ -96,22 +259,34 @@ def _openHomes(plugin: UtilityStone, player) -> None:
         addButton(
             form,
             name,
+            icon="textures/icons/Homes_Bed",
             on_click=fm.wrapClick(player, lambda p=player, n=name: _goHome(plugin, p, n), f"go_home:{name}"),
         )
 
     addDivider(form)
     if limit is None or len(owned) < limit:
-        addButton(form, "Create Home", on_click=fm.wrapClick(player, lambda: _createHome(plugin, player), "create_home"))
+        addButton(
+            form,
+            "Create Home",
+            icon="textures/icons/Homes_Bed",
+            on_click=fm.wrapClick(player, lambda: _createHome(plugin, player), "create_home"),
+        )
 
     for name in owned:
         targetName = name
         addButton(
             form,
             f"Delete {name}",
+            icon="textures/icons/Homes_Bed",
             on_click=fm.wrapClick(player, lambda p=player, n=targetName: _confirmDeleteHome(plugin, p, n), f"del_home:{name}"),
         )
 
-    addButton(form, "Back", on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "back"))
+    addButton(
+        form,
+        "Back",
+        icon="textures/icons/Arrow_Left_Curved",
+        on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "back"),
+    )
     fm.sendForm(player, form, label="homes_list")
 
 
@@ -183,7 +358,12 @@ def _openWarps(plugin: UtilityStone, player) -> None:
     visible = warps.visibleTo(player)
     if not visible:
         addLabel(form, "No warps are available to you.")
-        addButton(form, "Back", on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "back"))
+        addButton(
+            form,
+            "Back",
+            icon="textures/icons/Arrow_Left_Curved",
+            on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "back"),
+        )
         fm.sendForm(player, form, label="warps_list")
         return
 
@@ -193,10 +373,16 @@ def _openWarps(plugin: UtilityStone, player) -> None:
         addButton(
             form,
             name,
+            icon="textures/icons/LandClaims",
             on_click=fm.wrapClick(player, lambda p=player, n=name: _goWarp(plugin, p, n), f"go_warp:{name}"),
         )
 
-    addButton(form, "Back", on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "back"))
+    addButton(
+        form,
+        "Back",
+        icon="textures/icons/Arrow_Left_Curved",
+        on_click=fm.wrapClick(player, lambda: openPlayerMenu(plugin, player), "back"),
+    )
     fm.sendForm(player, form, label="warps_list")
 
 

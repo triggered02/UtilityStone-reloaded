@@ -3,6 +3,7 @@ from __future__ import annotations
 from endstone import Player
 
 from endstone_utilitystone.commands.base import CommandGroup
+from endstone_utilitystone.listeners.connection import giveMenuItem
 from endstone_utilitystone.ui.permissions import hasAdminGui, hasPlayerGui
 
 
@@ -10,6 +11,7 @@ class MenuCommands(CommandGroup):
     def bindings(self) -> dict:
         return {
             "menu": self.openMenu,
+            "usttest": self.openMenu,
         }
 
     def openMenu(self, sender, args: list) -> bool:
@@ -28,6 +30,13 @@ class MenuCommands(CommandGroup):
                 self.messages.failure(sender, "You do not have permission to access the admin panel.")
                 return True
             self.plugin.gui.navigator.openAdminPanel(sender)
+            return True
+
+        if action in ("item", "getitem", "get"):
+            if giveMenuItem(self.plugin, sender, force=True):
+                self.messages.success(sender, "Given Server Menu item.")
+            else:
+                self.messages.failure(sender, "Could not give Server Menu item.")
             return True
 
         self.plugin.gui.navigator.openPlayerMenu(sender)

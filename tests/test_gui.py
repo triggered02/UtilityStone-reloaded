@@ -8,6 +8,7 @@ from endstone_utilitystone.ui.config_menu import (
     SECRET_FIELDS,
 )
 import json
+import unittest
 
 
 class TestTomlParsing:
@@ -233,7 +234,7 @@ class TestAdminMenuSafeAreaImports:
         assert "hasAdminGui(player)" in source
 
 
-class TestPlayerMenuPermissionChecks:
+class TestPlayerMenuPermissionChecks(unittest.TestCase):
     """Verify player_menu.py conditionally shows buttons based on permissions."""
 
     def test_player_menu_checks_homes_permission(self):
@@ -283,8 +284,19 @@ class TestPlayerMenuPermissionChecks:
         import pathlib
         path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
         source = path.read_text()
-        # Player Info button should not be inside a permission conditional
-        assert 'addButton(form, "Player Info"' in source
+        # Player Info button is unconditional. The addButton call may be on a
+        # single line OR split across lines (8-space indentation in _openUtilities),
+        # so check both forms.
+        single_line = 'addButton(form, "Player Info"'
+        multi_line = (
+            'addButton(\n'
+            '        form,\n'
+            '        "Player Info"'
+        )
+        self.assertTrue(
+            single_line in source or multi_line in source,
+            "Player Info button must be unconditional in _openUtilities",
+        )
 
 
 class TestComponentsAPI:
@@ -411,44 +423,66 @@ welcomeMessage = "Welcome {name}!"
         assert parsed == "{name} {message}"
 
 
-class TestPlayerMenuGrouping:
-    """Regression test: player menu must have grouped sections."""
+class TestPlayerMenuGrouping(unittest.TestCase):
+    """Regression test: player menu must have grouped sections.
 
-    def test_player_menu_has_travel_header(self):
+    Phase 5.1 navigation refactor: section headers ("Travel", "Teleport",
+    "Utilities") are now clickable section BUTTONS that open submenus
+    containing only items from that section. The main menu must contain
+    no leaf items (Homes, Warps, etc.) inline.
+    """
+
+    def _source(self):
         import pathlib
         path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
-        source = path.read_text()
-        assert 'addHeader(form, "Travel")' in source
+        return path.read_text()
 
-    def test_player_menu_has_teleport_header(self):
-        import pathlib
-        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
-        source = path.read_text()
-        assert 'addHeader(form, "Teleport")' in source
+    def _section_button_present(self, source, button_label):
+        """Allow the addButton call to be on one line or split across lines."""
+        single_line = f'addButton(form, "{button_label}"'
+        multi_line = (
+            f'addButton(\n'
+            f'                form,\n'
+            f'                "{button_label}"'
+        )
+        return single_line in source or multi_line in source
 
-    def test_player_menu_has_utilities_header(self):
-        import pathlib
-        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
-        source = path.read_text()
-        assert 'addHeader(form, "Utilities")' in source
+    def test_player_menu_has_travel_button(self):
+        source = self._source()
+        self.assertTrue(self._section_button_present(source, "Travel"))
 
-    def test_player_menu_groups_travel_together(self):
-        """Homes, Warps, Spawn should appear under Travel header."""
-        import pathlib
-        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
-        source = path.read_text()
-        travel_idx = source.index('addHeader(form, "Travel")')
-        homes_idx = source.index('"Homes"', travel_idx)
-        warps_idx = source.index('"Warps"', travel_idx)
-        spawn_idx = source.index('"Spawn"', travel_idx)
-        assert homes_idx < warps_idx < spawn_idx
+    def test_player_menu_has_warps_button(self):
+        source = self._source()
+        self.assertTrue(self._section_button_present(source, "Warps"))
+
+    def test_player_menu_has_utilities_button(self):
+        source = self._source()
+        self.assertTrue(self._section_button_present(source, "Utilities"))
+
+    def test_player_menu_groups_travel_in_main_only_as_button(self):
+        """In the main menu, Homes/Warps/Spawn must NOT appear — they live in
+        the Travel submenu. The main menu must contain only section buttons.
+        """
+        source = self._source()
+        # The Travel button must dispatch to _openTravel
+        assert "lambda: _openTravel(plugin, player)" in source
+        # _openTravel must exist and produce Homes/Warps/Spawn
+        assert "def _openTravel(" in source
+        single_line = 'addButton(form, "Homes"'
+        multi_line = (
+            'addButton(\n'
+            '            form,\n'
+            '            "Homes"'
+        )
+        self.assertTrue(
+            single_line in source or multi_line in source,
+            "_openTravel must contain a Homes button",
+        )
 
     def test_player_menu_empty_state(self):
         """When no permissions, shows empty state message."""
-        import pathlib
-        path = pathlib.Path(__file__).resolve().parent.parent / "src" / "endstone_utilitystone" / "ui" / "player_menu.py"
-        source = path.read_text()
-        assert 'No features available.' in source
+        source = self._source()
+        self.assertIn('No features available.', source)
 
 
 class TestTracebackLogging:

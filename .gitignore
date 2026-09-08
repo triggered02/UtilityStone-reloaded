@@ -13,3 +13,4 @@ venv/
 *.whl
 *.json.tmp
 *.json.broken
+reference_assets/

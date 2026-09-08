@@ -33,7 +33,7 @@ class ConnectionListener:
             plugin.server.scheduler.run_task(plugin, lambda: self.sendToSpawn(player), delay=20)
 
         if plugin.settings.menuItemEnabled:
-            self.giveMenuItem(player)
+            giveMenuItem(self.plugin, player)
 
         plugin.discord.relayPresence(f"{player.name} joined the server.")
         session.touch()
@@ -69,21 +69,29 @@ class ConnectionListener:
             player.teleport(destination)
 
     def giveMenuItem(self, player) -> None:
-        try:
-            if not player.is_valid:
-                return
-        except Exception:
-            return
+        giveMenuItem(self.plugin, player)
 
-        settings = self.plugin.settings
-        itemType = settings.menuItemType
-        displayName = settings.menuItemName
-        lore = settings.menuItemLore
+    def render(self, template: str, player) -> str:
+        return colorize(template.replace("{name}", player.name))
 
-        if not itemType or not displayName:
-            return
 
-        inventory = player.inventory
+def giveMenuItem(plugin, player, force: bool = False) -> bool:
+    try:
+        if not player.is_valid:
+            return False
+    except Exception:
+        return False
+
+    settings = plugin.settings
+    itemType = settings.menuItemType
+    displayName = settings.menuItemName
+    lore = settings.menuItemLore
+
+    if not itemType or not displayName:
+        return False
+
+    inventory = player.inventory
+    if not force:
         for slot in list(range(36)) + [36, 37, 38, 39, 40]:
             try:
                 item = inventory.get_item(slot)
@@ -93,33 +101,33 @@ class ConnectionListener:
                     continue
                 meta = item.item_meta
                 if meta is not None and meta.display_name == displayName:
-                    return
+                    return True
             except Exception:
                 continue
 
-        from endstone.inventory import ItemStack
+    from endstone.inventory import ItemStack
 
-        try:
-            stack = ItemStack(itemType, 1)
-            meta = stack.item_meta
-            if meta is not None:
-                meta.display_name = displayName
-                if lore:
-                    meta.lore = [lore]
-                stack.set_item_meta(meta)
+    try:
+        stack = ItemStack(itemType, 1)
+        meta = stack.item_meta
+        if meta is not None:
+            meta.display_name = displayName
+            if lore:
+                meta.lore = [lore]
+            stack.set_item_meta(meta)
 
-            slot = min(max(0, settings.menuItemSlot), 35)
-            existing = inventory.get_item(slot)
-            if existing is not None:
-                overflow = inventory.add_item(stack)
-                if overflow:
-                    for s in overflow.values():
-                        dimension = player.location.dimension
-                        dimension.drop_item(player.location, s)
-            else:
-                inventory.set_item(slot, stack)
-        except Exception as exc:
-            self.plugin.logger.warning(f"Could not give menu item to {player.name}: {exc}")
-
-    def render(self, template: str, player) -> str:
+        slot = min(max(0, settings.menuItemSlot), 35)
+        existing = inventory.get_item(slot)
+        if existing is not None:
+            overflow = inventory.add_item(stack)
+            if overflow:
+                for s in overflow.values():
+                    dimension = player.location.dimension
+                    dimension.drop_item(player.location, s)
+        else:
+            inventory.set_item(slot, stack)
+        return True
+    except Exception as exc:
+        plugin.logger.warning(f"Could not give menu item to {player.name}: {exc}")
+        return False
         return colorize(template.replace("{name}", player.name))

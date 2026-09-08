@@ -129,9 +129,9 @@ class Settings:
         self.kits = sectionOf(data, "kits")
 
         menuItem = sectionOf(data, "menuItem")
-        self.menuItemEnabled = readBool(menuItem, "enabled", False)
+        self.menuItemEnabled = readBool(menuItem, "enabled", True)
         self.menuItemType = readText(menuItem, "itemType", "minecraft:written_book")
-        self.menuItemName = readText(menuItem, "name", "UtilityStone Menu")
+        self.menuItemName = readText(menuItem, "name", "Server Menu")
         self.menuItemLore = readText(menuItem, "lore", "Right-click to open the menu")
         self.menuItemSlot = readInt(menuItem, "slot", 8, 0, 35)
 
