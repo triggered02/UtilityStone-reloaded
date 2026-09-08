@@ -25,24 +25,32 @@ def openAdminPanel(plugin: UtilityStone, player) -> bool:
 
     form = buildActionMenu("Admin Panel", "Server administration")
 
-    addButton(form, "Player Management", on_click=fm.wrapClick(player, lambda: _openPlayerManagement(plugin, player), "admin_players"))
-    addButton(form, "Homes", on_click=fm.wrapClick(player, lambda: _openAdminHomes(plugin, player), "admin_homes"))
-    addButton(form, "Warps", on_click=fm.wrapClick(player, lambda: _openAdminWarps(plugin, player), "admin_warps"))
-    addButton(form, "Spawn", on_click=fm.wrapClick(player, lambda: _openAdminSpawn(plugin, player), "admin_spawn"))
-    addButton(form, "Kits", on_click=fm.wrapClick(player, lambda: _openAdminKits(plugin, player), "admin_kits"))
-    addButton(form, "Safe Areas", on_click=fm.wrapClick(player, lambda: _openSafeAreas(plugin, player), "admin_safeareas"))
-    addButton(form, "Ranks", on_click=fm.wrapClick(player, lambda: _openRanks(plugin, player), "admin_ranks"))
-    addButton(form, "Daily Rewards", on_click=fm.wrapClick(player, lambda: _openDailyRewards(plugin, player), "admin_daily_rewards"))
+    addHeader(form, "Players & Moderation")
+    addButton(form, "Player Management", icon="textures/icons/Stats_Icon", on_click=fm.wrapClick(player, lambda: _openPlayerManagement(plugin, player), "admin_players"))
+    addButton(form, "Homes", icon="textures/icons/Homes_Bed", on_click=fm.wrapClick(player, lambda: _openAdminHomes(plugin, player), "admin_homes"))
+    addButton(form, "Warps", icon="textures/icons/LandClaims", on_click=fm.wrapClick(player, lambda: _openAdminWarps(plugin, player), "admin_warps"))
+    addButton(form, "Spawn", icon="textures/icons/UpArrow", on_click=fm.wrapClick(player, lambda: _openAdminSpawn(plugin, player), "admin_spawn"))
+    addButton(form, "Kits", icon="textures/icons/crate_icon", on_click=fm.wrapClick(player, lambda: _openAdminKits(plugin, player), "admin_kits"))
+
+    addDivider(form)
+    addHeader(form, "Ranks & Permissions")
+    addButton(form, "Ranks", icon="textures/icons/admin", on_click=fm.wrapClick(player, lambda: _openRanks(plugin, player), "admin_ranks"))
+
+    addDivider(form)
+    addHeader(form, "Server & World")
+    addButton(form, "Broadcasts", icon="textures/icons/TPA_Globe", on_click=fm.wrapClick(player, lambda: openBroadcastManager(plugin, player), "admin_broadcasts"))
+    addButton(form, "Safe Areas", icon="textures/icons/LandClaims", on_click=fm.wrapClick(player, lambda: _openSafeAreas(plugin, player), "admin_safeareas"))
+    addButton(form, "Daily Rewards", icon="textures/icons/loot", on_click=fm.wrapClick(player, lambda: _openDailyRewards(plugin, player), "admin_daily_rewards"))
 
     addDivider(form)
     addHeader(form, "Server Tools")
-    addButton(form, "Plugin Info", on_click=fm.wrapClick(player, lambda: _openPluginInfo(plugin, player), "admin_info"))
-    addButton(form, "Reload Config", on_click=fm.wrapClick(player, lambda: _confirmReload(plugin, player), "admin_reload"))
+    addButton(form, "Plugin Info", icon="textures/icons/Stats_Icon", on_click=fm.wrapClick(player, lambda: _openPluginInfo(plugin, player), "admin_info"))
+    addButton(form, "Reload Config", icon="textures/icons/admin", on_click=fm.wrapClick(player, lambda: _confirmReload(plugin, player), "admin_reload"))
 
     addDivider(form)
-    addButton(form, "Configuration", on_click=fm.wrapClick(player, lambda: fm.navigator.openConfigEditor(player), "admin_config"))
+    addButton(form, "Configuration", icon="textures/icons/admin", on_click=fm.wrapClick(player, lambda: fm.navigator.openConfigEditor(player), "admin_config"))
 
-    addButton(form, "Back to Menu", on_click=fm.wrapClick(player, lambda: fm.navigator.openPlayerMenu(player), "back"))
+    addButton(form, "Back to Menu", icon="textures/icons/Arrow_Left_Curved", on_click=fm.wrapClick(player, lambda: fm.navigator.openPlayerMenu(player), "back"))
 
     return fm.sendForm(player, form, label="admin_panel")
 
@@ -458,3 +466,329 @@ def _confirmDeleteSafeArea(plugin: UtilityStone, player, name: str) -> None:
         plugin.gui.untrack(player)
 
     askConfirmation(plugin, player, "Delete Safe Area", f"Delete safe area '{name}'?", onYes=_doDelete)
+
+
+# ---------------------------------------------------------------------------
+# Broadcast Manager
+# ---------------------------------------------------------------------------
+PERM_BROADCASTS = "utilitystone.admin.broadcasts"
+
+
+def openBroadcastManager(plugin: UtilityStone, player) -> None:
+    from endstone_utilitystone.ui.permissions import hasPermission
+    fm = plugin.gui
+
+    if not hasPermission(player, PERM_BROADCASTS):
+        plugin.messages.failure(player, "You do not have permission to manage broadcasts.")
+        return
+
+    form = buildActionMenu("Manage Broadcasts", "Automated server broadcast system")
+
+    broadcasts = plugin.broadcasts
+    enabled = broadcasts.enabled if broadcasts else False
+    interval_secs = broadcasts.intervalSeconds if broadcasts else 1200.0
+    messages = broadcasts.messages if broadcasts else []
+
+    from endstone_utilitystone.util.durations import formatDuration
+    status_str = "ENABLED" if enabled else "DISABLED"
+    interval_str = formatDuration(interval_secs)
+
+    addLabel(form, f"Status: {status_str}")
+    addLabel(form, f"Interval: {interval_str}")
+    addLabel(form, f"Configured Messages: {len(messages)}")
+
+    addDivider(form)
+
+    # Toggle Enable / Disable
+    toggle_text = "Disable Broadcasts" if enabled else "Enable Broadcasts"
+    addButton(
+        form,
+        toggle_text,
+        icon="textures/icons/admin",
+        on_click=fm.wrapClick(player, lambda: _toggleBroadcasts(plugin, player, not enabled), "toggle_broadcasts"),
+    )
+
+    # Change Interval
+    addButton(
+        form,
+        "Change Interval",
+        icon="textures/icons/Stats_Icon",
+        on_click=fm.wrapClick(player, lambda: _promptChangeInterval(plugin, player, interval_secs), "change_interval"),
+    )
+
+    # Send Test Broadcast
+    if messages:
+        addButton(
+            form,
+            "Send Test Broadcast",
+            icon="textures/icons/TPA_Globe",
+            on_click=fm.wrapClick(player, lambda: _sendTestBroadcast(plugin, player), "test_broadcast"),
+        )
+
+    # Add Message
+    addButton(
+        form,
+        "Add Broadcast Message",
+        icon="textures/icons/crate_icon",
+        on_click=fm.wrapClick(player, lambda: _promptAddMessage(plugin, player), "add_broadcast_msg"),
+    )
+
+    # List Messages
+    if messages:
+        addDivider(form)
+        addHeader(form, "Messages")
+        for i, msg in enumerate(messages):
+            first_line = msg.split("\n")[0]
+            preview = first_line[:30] + ("..." if len(first_line) > 30 or "\n" in msg else "")
+            idx = i
+            addButton(
+                form,
+                f"#{i + 1}: {preview}",
+                icon="textures/icons/loot",
+                on_click=fm.wrapClick(player, lambda p=player, ix=idx: _openMessageDetail(plugin, p, ix), f"msg_detail:{i}"),
+            )
+
+    addDivider(form)
+    addButton(
+        form,
+        "Back",
+        icon="textures/icons/Arrow_Left_Curved",
+        on_click=fm.wrapClick(player, lambda: openAdminPanel(plugin, player), "back"),
+    )
+
+    fm.sendForm(player, form, label="broadcast_manager")
+
+
+def _saveBroadcastConfigAndReload(plugin: UtilityStone) -> None:
+    from pathlib import Path
+    path = Path(plugin.data_folder) / "config.toml"
+    if path.exists():
+        try:
+            text = path.read_text(encoding="utf-8")
+            from endstone_utilitystone.ui.config_menu import _writeTomlValue
+            text = _writeTomlValue(text, "broadcasts.enabled", plugin.settings.broadcastsEnabled)
+            text = _writeTomlValue(text, "broadcasts.intervalSeconds", plugin.settings.broadcastsIntervalSeconds)
+            text = _writeTomlValue(text, "broadcasts.cycle", plugin.settings.broadcastsCycle)
+            text = _writeTomlValue(text, "broadcasts.prefix", plugin.settings.broadcastsPrefix)
+            text = _writeTomlValue(text, "broadcasts.messages", plugin.settings.broadcastsMessages)
+            path.write_text(text, encoding="utf-8")
+        except Exception:
+            pass
+
+    plugin.reloadSettings()
+
+
+def _toggleBroadcasts(plugin: UtilityStone, player, enable: bool) -> None:
+    plugin.settings.broadcastsEnabled = enable
+    if plugin.broadcasts:
+        plugin.broadcasts.setEnabled(enable)
+    _saveBroadcastConfigAndReload(plugin)
+    state = "enabled" if enable else "disabled"
+    plugin.messages.success(player, f"Automated broadcasts are now {state}.")
+    openBroadcastManager(plugin, player)
+
+
+def _promptChangeInterval(plugin: UtilityStone, player, current_secs: float) -> None:
+    from endstone.form import TextInput
+    from endstone_utilitystone.ui.components import buildModal
+    fm = plugin.gui
+
+    controls = [
+        TextInput(label="Interval in seconds (min 5s, e.g. 1200 for 20m)", placeholder="1200", default_value=str(int(current_secs))),
+    ]
+
+    def _onSubmit(p, data):
+        parsed = fm.parseModalData(data)
+        if not parsed or len(parsed) < 1:
+            openBroadcastManager(plugin, player)
+            return
+
+        raw = str(parsed[0]).strip()
+        try:
+            val = float(raw)
+            if val < 5.0:
+                plugin.messages.failure(player, "Interval must be at least 5 seconds.")
+                openBroadcastManager(plugin, player)
+                return
+        except ValueError:
+            plugin.messages.failure(player, "Please enter a valid number of seconds.")
+            openBroadcastManager(plugin, player)
+            return
+
+        plugin.settings.broadcastsIntervalSeconds = val
+        if plugin.broadcasts:
+            plugin.broadcasts.setInterval(val)
+        _saveBroadcastConfigAndReload(plugin)
+        from endstone_utilitystone.util.durations import formatDuration
+        plugin.messages.success(player, f"Broadcast interval set to {formatDuration(val)}.")
+        openBroadcastManager(plugin, player)
+
+    form = buildModal(
+        "Change Broadcast Interval",
+        controls=controls,
+        onSubmit=fm.wrapSubmit(player, _onSubmit, "change_interval"),
+        submitText="Save",
+    )
+    fm.sendForm(player, form, label="change_interval_modal")
+
+
+def _sendTestBroadcast(plugin: UtilityStone, player) -> None:
+    if plugin.broadcasts and plugin.broadcasts.broadcastNext():
+        plugin.messages.success(player, "Broadcast sent to online players.")
+    else:
+        plugin.messages.failure(player, "No broadcast messages available to send.")
+    openBroadcastManager(plugin, player)
+
+
+def _promptAddMessage(plugin: UtilityStone, player) -> None:
+    from endstone.form import TextInput
+    from endstone_utilitystone.ui.components import buildModal
+    fm = plugin.gui
+
+    controls = [
+        TextInput(label="Broadcast Message (use \\n for line breaks)", placeholder="e.g. Join our Discord! \\n https://discord.gg/xyz"),
+    ]
+
+    def _onSubmit(p, data):
+        parsed = fm.parseModalData(data)
+        if not parsed or len(parsed) < 1:
+            openBroadcastManager(plugin, player)
+            return
+
+        msg = str(parsed[0]).strip().replace("\\n", "\n")
+        if not msg:
+            plugin.messages.failure(player, "Message cannot be empty.")
+            openBroadcastManager(plugin, player)
+            return
+
+        plugin.settings.broadcastsMessages.append(msg)
+        if plugin.broadcasts:
+            plugin.broadcasts.addMessage(msg)
+        _saveBroadcastConfigAndReload(plugin)
+        plugin.messages.success(player, "Added new broadcast message.")
+        openBroadcastManager(plugin, player)
+
+    form = buildModal(
+        "Add Broadcast Message",
+        controls=controls,
+        onSubmit=fm.wrapSubmit(player, _onSubmit, "add_message"),
+        submitText="Add",
+    )
+    fm.sendForm(player, form, label="add_message_modal")
+
+
+def _openMessageDetail(plugin: UtilityStone, player, index: int) -> None:
+    fm = plugin.gui
+
+    messages = plugin.settings.broadcastsMessages
+    if index < 0 or index >= len(messages):
+        openBroadcastManager(plugin, player)
+        return
+
+    msg_text = messages[index]
+
+    form = buildActionMenu(f"Broadcast #{index + 1}")
+    addLabel(form, f"Message Content:\n\n{msg_text}")
+    addDivider(form)
+
+    # Edit
+    idx = index
+    addButton(
+        form,
+        "Edit Message",
+        icon="textures/icons/crate_icon",
+        on_click=fm.wrapClick(player, lambda p=player, i=idx: _promptEditMessage(plugin, p, i), f"edit_msg:{index}"),
+    )
+
+    # Delete
+    addButton(
+        form,
+        "Delete Message",
+        icon="textures/icons/admin",
+        on_click=fm.wrapClick(player, lambda p=player, i=idx: _confirmDeleteMessage(plugin, p, i), f"del_msg:{index}"),
+    )
+
+    # Send Now
+    addButton(
+        form,
+        "Send This Message Now",
+        icon="textures/icons/TPA_Globe",
+        on_click=fm.wrapClick(player, lambda p=player, txt=msg_text: _sendSpecificBroadcast(plugin, p, txt), f"send_msg:{index}"),
+    )
+
+    addButton(
+        form,
+        "Back",
+        icon="textures/icons/Arrow_Left_Curved",
+        on_click=fm.wrapClick(player, lambda: openBroadcastManager(plugin, player), "back"),
+    )
+
+    fm.sendForm(player, form, label=f"msg_detail:{index}")
+
+
+def _promptEditMessage(plugin: UtilityStone, player, index: int) -> None:
+    from endstone.form import TextInput
+    from endstone_utilitystone.ui.components import buildModal
+    fm = plugin.gui
+
+    messages = plugin.settings.broadcastsMessages
+    if index < 0 or index >= len(messages):
+        openBroadcastManager(plugin, player)
+        return
+
+    current = messages[index].replace("\n", "\\n")
+    controls = [
+        TextInput(label="Broadcast Message (use \\n for line breaks)", placeholder="", default_value=current),
+    ]
+
+    def _onSubmit(p, data):
+        parsed = fm.parseModalData(data)
+        if not parsed or len(parsed) < 1:
+            openBroadcastManager(plugin, player)
+            return
+
+        new_msg = str(parsed[0]).strip().replace("\\n", "\n")
+        if not new_msg:
+            plugin.messages.failure(player, "Message cannot be empty.")
+            openBroadcastManager(plugin, player)
+            return
+
+        if 0 <= index < len(plugin.settings.broadcastsMessages):
+            plugin.settings.broadcastsMessages[index] = new_msg
+            if plugin.broadcasts:
+                plugin.broadcasts.editMessage(index, new_msg)
+            _saveBroadcastConfigAndReload(plugin)
+            plugin.messages.success(player, f"Updated broadcast message #{index + 1}.")
+
+        openBroadcastManager(plugin, player)
+
+    form = buildModal(
+        f"Edit Message #{index + 1}",
+        controls=controls,
+        onSubmit=fm.wrapSubmit(player, _onSubmit, f"edit_message:{index}"),
+        submitText="Save",
+    )
+    fm.sendForm(player, form, label=f"edit_message_modal:{index}")
+
+
+def _confirmDeleteMessage(plugin: UtilityStone, player, index: int) -> None:
+    from endstone_utilitystone.ui.dialogs import askConfirmation
+
+    def _doDelete(p):
+        if 0 <= index < len(plugin.settings.broadcastsMessages):
+            plugin.settings.broadcastsMessages.pop(index)
+            if plugin.broadcasts:
+                plugin.broadcasts.deleteMessage(index)
+            _saveBroadcastConfigAndReload(plugin)
+            plugin.messages.success(player, f"Deleted broadcast message #{index + 1}.")
+        openBroadcastManager(plugin, player)
+
+    askConfirmation(plugin, player, "Delete Message", f"Are you sure you want to delete broadcast message #{index + 1}?", onYes=_doDelete)
+
+
+def _sendSpecificBroadcast(plugin: UtilityStone, player, text: str) -> None:
+    if plugin.broadcasts and plugin.broadcasts.broadcastNext(specific_message=text):
+        plugin.messages.success(player, "Broadcast sent to online players.")
+    else:
+        plugin.messages.failure(player, "Could not send broadcast.")
+    openBroadcastManager(plugin, player)

@@ -170,6 +170,16 @@ Full in-game item and container editing built into the Admin Player Inspector:
 - **Protection**: Defines spherical/cuboid protected zones where player damage, block breaking, and pvp are restricted.
 - **Bypass**: Granted via `utilitystone.safearea.bypass` permission or `utilitystone.admin` tag.
 
+### Automated Broadcast System
+- **Server Announcements**: Automatically broadcasts customizable announcement messages to all online players at a scheduled interval (defaults to `https://discord.gg/gHpgjRTCnu` announcement).
+- **Admin Broadcast Manager**: Accessible via **Admin Panel → Server & World → Broadcasts** (requires `utilitystone.admin.broadcasts` permission).
+  - Toggle Enable/Disable automatic broadcasts.
+  - Change interval in seconds (minimum 5s, default 1200s / 20m).
+  - Add, edit, or delete broadcast messages with confirmation dialogs.
+  - Test/send a broadcast immediately to online players.
+  - Send specific messages on demand.
+- **Persistence & Scheduler**: Changes made in the Admin Panel persist to `config.toml` on disk and survive server restarts. Updating the interval or toggling state safely restarts the Endstone scheduler task without creating duplicate tasks.
+
 ### Daily Rewards System
 - **`/dailyreward` (`claim`, `status`)**: Player daily login streak tracking and reward claims.
 - **Milestone Rewards**: Configurable reward commands executed when reaching specific streak thresholds (e.g. Day 1, Day 7, Day 30).
@@ -194,7 +204,20 @@ Full in-game item and container editing built into the Admin Player Inspector:
 Optional Discord bot integration shipping with no required external Python dependencies (uses `aiohttp` bundled with Endstone):
 - **Features**: 2-way chat relay, death message relay, join/leave notices, server start/stop notifications.
 - **Security & Efficiency**: Async websocket gateway (`gateway.discord.gg`), REST API v10, bounded thread-safe queues, batched message sending (rate-limit friendly), message truncation, and stripped `@everyone` / `@here` mentions.
-- **Configuration**: Store bot token and channel ID in `plugins/utilitystone/.env` (`DISCORD_BOT_TOKEN` & `DISCORD_CHANNEL_ID`).
+- **Setup & Environment File**:
+  1. Create a `.env` file from `.env.example` in your plugin data directory (`plugins/utilitystone/.env` or `plugins/endstone_utilitystone/.env`) or server root working directory (`.env`):
+     ```bash
+     cp .env.example plugins/utilitystone/.env
+     ```
+  2. Configure the required environment variables inside `.env`:
+     ```env
+     DISCORD_BOT_TOKEN=your_bot_token_here
+     DISCORD_CHANNEL_ID=123456789012345678
+     ```
+     *(Note: `DISCORD_BOT_TOKEN` and `DISCORD_CHANNEL_ID` can also be exported as system environment variables).*
+  3. **Security Warning**: The bot token is a confidential credential with API access to your bot. **NEVER commit `.env` or share your bot token publicly.** Real `.env` files are excluded by `.gitignore`.
+- **Enabling & Configuration**:
+  Ensure `enabled = true` under `[discord]` in `config.toml`. Additional settings (`relayChat`, `relayDeaths`, `relayJoinLeave`, `relayServerState`, formats, and polling limits) are configured under `[discord]` in `config.toml`.
 
 ### USTBridge Integration API
 Public integration surface exposed for diagnostic and third-party Endstone plugins (`endstone_ust_bridge_test`):
@@ -333,6 +356,7 @@ Public integration surface exposed for diagnostic and third-party Endstone plugi
 | `utilitystone.admin.dailyrewards.view` | View player daily reward details | Operator (`op`) |
 | `utilitystone.admin.dailyrewards.reset` | Reset player daily reward streaks | Operator (`op`) |
 | `utilitystone.admin.dailyrewards.manage`| Manage reward milestone commands | Operator (`op`) |
+| `utilitystone.admin.broadcasts` | Manage automated broadcasts & Broadcast Manager | Operator (`op`) |
 | `utilitystone.safearea.bypass` | Bypass safe area protection | Operator (`op`) |
 | `utilitystone.homes.unlimited` | Save unlimited homes | Operator (`op`) |
 | `utilitystone.teleport.instant` | Skip teleport warmup delay | Operator (`op`) |
@@ -414,6 +438,16 @@ enabled = true               # Daily login rewards engine
 1 = ["give {player} minecraft:bread 16"]
 7 = ["give {player} minecraft:diamond 5"]
 30 = ["give {player} minecraft:netherite_ingot 1"]
+
+[broadcasts]
+enabled = true               # Enable automated broadcast announcements
+intervalSeconds = 1200       # Interval between broadcasts in seconds (20m)
+cycle = true                 # Cycle sequentially through messages
+sendOnStartup = false        # Send a broadcast immediately on startup
+prefix = "&8[&bBroadcast&8]&r "# Prefix for broadcast messages
+messages = [
+    "Join our Discord server!\nhttps://discord.gg/gHpgjRTCnu"
+]
 
 [kits.starter]
 cooldown = "24h"

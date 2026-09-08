@@ -90,6 +90,16 @@ enabled = true
     "give {player} diamond_block 1",
 ]
 
+[broadcasts]
+enabled = true
+intervalSeconds = 1200
+cycle = true
+sendOnStartup = false
+prefix = "&8[&bBroadcast&8]&r "
+messages = [
+    "Join our Discord server!\nhttps://discord.gg/gHpgjRTCnu"
+]
+
 [kits.starter]
 cooldown = "24h"
 items = [

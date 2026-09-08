@@ -147,6 +147,18 @@ class Settings:
         self.dailyRewardsEnabled = readBool(dailyRewards, "enabled", True)
         self.dailyRewardsRewards = self._parseMilestones(dailyRewards.get("rewards"))
 
+        broadcasts = sectionOf(data, "broadcasts")
+        self.broadcastsEnabled = readBool(broadcasts, "enabled", True)
+        self.broadcastsIntervalSeconds = readFloat(broadcasts, "intervalSeconds", 1200.0, 5.0, 86400.0)
+        self.broadcastsCycle = readBool(broadcasts, "cycle", True)
+        self.broadcastsSendOnStartup = readBool(broadcasts, "sendOnStartup", False)
+        self.broadcastsPrefix = readText(broadcasts, "prefix", "&8[&bBroadcast&8]&r ")
+        rawMsgs = broadcasts.get("messages")
+        if isinstance(rawMsgs, list) and len(rawMsgs) > 0:
+            self.broadcastsMessages = [str(m) for m in rawMsgs if m]
+        else:
+            self.broadcastsMessages = ["Join our Discord server!\nhttps://discord.gg/gHpgjRTCnu"]
+
     def kitDefinition(self, name: str) -> dict | None:
         definition = self.kits.get(name.lower())
         return definition if isinstance(definition, dict) else None

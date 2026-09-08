@@ -369,6 +369,7 @@ class UtilityStone(Plugin):
         "utilitystone.admin.dailyrewards.view": {"description": "View daily reward info for players.", "default": "op"},
         "utilitystone.admin.dailyrewards.reset": {"description": "Reset daily reward streaks and history.", "default": "op"},
         "utilitystone.admin.dailyrewards.manage": {"description": "Create, edit, and delete daily reward milestones.", "default": "op"},
+        "utilitystone.admin.broadcasts": {"description": "Manage automated broadcasts.", "default": "op"},
     }
 
     def __init__(self):
@@ -391,6 +392,7 @@ class UtilityStone(Plugin):
         self.safeareas: SafeAreaService | None = None
         self.ranks: RankService | None = None
         self.dailyRewards: DailyRewardsService | None = None
+        self.broadcasts: Any | None = None
         self.godPlayers: set = set()
         self._taskIds: list = []
 
@@ -429,6 +431,9 @@ class UtilityStone(Plugin):
         self.safeareas = SafeAreaService(self)
         self.ranks = RankService(self)
         self.dailyRewards = DailyRewardsService(self)
+        from endstone_utilitystone.services.broadcasts import BroadcastService
+        self.broadcasts = BroadcastService(self)
+        self.broadcasts.reload()
 
         self.gui = FormManager(self)
         self.gui.navigator = Navigator(self.gui)
@@ -469,6 +474,9 @@ class UtilityStone(Plugin):
         if self.safeareas is not None:
             self.safeareas.clearAll()
 
+        if self.broadcasts is not None:
+            self.broadcasts.stopSchedule()
+
         if self.ranks is not None:
             self.ranks.clearAttachments()
 
@@ -494,6 +502,9 @@ class UtilityStone(Plugin):
         if self.discord is not None:
             self.discord.stop()
             self.announceDiscord()
+
+        if self.broadcasts is not None:
+            self.broadcasts.reload()
 
         self.cancelTasks()
         self.scheduleTasks()
