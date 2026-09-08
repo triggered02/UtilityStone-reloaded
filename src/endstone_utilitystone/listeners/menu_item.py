@@ -24,15 +24,21 @@ class MenuItemListener:
         if item is None:
             return
 
+        from endstone_utilitystone.ui.permissions import hasPermission
+        if not hasPermission(player, "utilitystone.command.menu"):
+            return
+
         # Must match BOTH item type AND display name
-        if item.type != settings.menuItemType:
+        item_type_str = item.type.id if hasattr(item.type, "id") else str(item.type)
+        target_type = settings.menuItemType
+        target_type_full = target_type if ":" in target_type else f"minecraft:{target_type}"
+        target_type_short = target_type.replace("minecraft:", "")
+
+        if item_type_str not in (target_type, target_type_full, target_type_short) and str(item.type) != target_type:
             return
 
         meta = item.item_meta
-        if meta is None:
-            return
-
-        if meta.display_name != settings.menuItemName:
+        if meta is None or not meta.has_display_name or meta.display_name != settings.menuItemName:
             return
 
         event.cancel()

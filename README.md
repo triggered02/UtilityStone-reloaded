@@ -107,7 +107,7 @@ UtilityStone Reloaded features an **Obsidian Essentials-inspired UI suite** that
 
 ### Server Menu & Quick-Access Item
 - **`/menu` Command**: Opens the central **Server Menu**. Compatible with `/usttest` alias.
-- **Server Menu Item**: Configurable quick-access item (defaults to `minecraft:written_book` in slot 8, titled `"Server Menu"`).
+- **Server Menu Item**: Configurable quick-access item (defaults to `minecraft:compass` in slot 8, titled `"Server Menu"`).
   - Given automatically on join when enabled in `config.toml` (`[menuItem]`).
   - Players can claim the item anytime via `/menu item` (or `/menu getitem`).
   - Right-clicking the item in-game checks `utilitystone.command.menu` permission and opens `Server Menu`.
@@ -395,7 +395,7 @@ welcomeMessage = ""          # Private message sent to joining player
 
 [menuItem]
 enabled = true               # Enable quick-access Server Menu item on join
-itemType = "minecraft:written_book"
+itemType = "minecraft:compass"
 name = "Server Menu"
 lore = "Right-click to open the menu"
 slot = 8                     # Hotbar slot (0–35)

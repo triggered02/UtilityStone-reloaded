@@ -84,7 +84,7 @@ class TestSettings:
     def test_menu_item_defaults(self):
         settings = Settings()
         assert settings.menuItemEnabled is True
-        assert settings.menuItemType == "minecraft:written_book"
+        assert settings.menuItemType == "minecraft:compass"
         assert settings.menuItemName == "Server Menu"
         assert settings.menuItemLore == "Right-click to open the menu"
         assert settings.menuItemSlot == 8

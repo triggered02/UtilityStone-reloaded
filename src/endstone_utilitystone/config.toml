@@ -60,7 +60,7 @@ welcomeMessage = ""
 
 [menuItem]
 enabled = true
-itemType = "minecraft:written_book"
+itemType = "minecraft:compass"
 name = "Server Menu"
 lore = "Right-click to open the menu"
 slot = 8
